@@ -1,0 +1,900 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-04T18:49:58.807471+00:00",
+  "benchmark": "apple-m1-pro-llama2-7b-q4-smoke",
+  "objective": "throughput",
+  "constraints": {
+    "max_error_rate": 0.0,
+    "max_p95_latency_ms": 4000
+  },
+  "definition_fingerprint": "414dc5b70d35c29fe876481510023ad65e257bf842623d67559b607831dfbfd7",
+  "definition": {
+    "config": {
+      "name": "apple-m1-pro-llama2-7b-q4-smoke",
+      "dataset": "workload.jsonl",
+      "objective": "throughput",
+      "constraints": {
+        "max_error_rate": 0.0,
+        "max_p95_latency_ms": 4000
+      },
+      "run": {
+        "warmup": 1,
+        "repetitions": 2,
+        "concurrency": [
+          1,
+          2,
+          4
+        ],
+        "timeout_s": 120
+      },
+      "targets": [
+        {
+          "name": "llama.cpp-8640-metal-fa-auto",
+          "adapter": "openai",
+          "launch": {
+            "command": [
+              "llama-server",
+              "-m",
+              "${RUNTIMEFIT_MODEL}",
+              "--host",
+              "127.0.0.1",
+              "--port",
+              "8181",
+              "-ngl",
+              "99",
+              "--ctx-size",
+              "2048"
+            ],
+            "health_url": "http://127.0.0.1:8181/health",
+            "startup_timeout_s": 120
+          },
+          "options": {
+            "base_url": "http://127.0.0.1:8181/v1",
+            "model": "llama-2-7b-chat.Q4_0.gguf",
+            "streaming": true,
+            "generation": {
+              "temperature": 0,
+              "max_tokens": 64,
+              "seed": 42,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          }
+        },
+        {
+          "name": "llama.cpp-8640-metal-fa-off",
+          "adapter": "openai",
+          "launch": {
+            "command": [
+              "llama-server",
+              "-m",
+              "${RUNTIMEFIT_MODEL}",
+              "--host",
+              "127.0.0.1",
+              "--port",
+              "8181",
+              "-ngl",
+              "99",
+              "--ctx-size",
+              "2048",
+              "--flash-attn",
+              "off"
+            ],
+            "health_url": "http://127.0.0.1:8181/health",
+            "startup_timeout_s": 120
+          },
+          "options": {
+            "base_url": "http://127.0.0.1:8181/v1",
+            "model": "llama-2-7b-chat.Q4_0.gguf",
+            "streaming": true,
+            "generation": {
+              "temperature": 0,
+              "max_tokens": 64,
+              "seed": 42,
+              "stream_options": {
+                "include_usage": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dataset_sha256": "97242f994fee42e7c37f458b2be925280748f9f96d564857b55efb1877799cbb"
+  },
+  "environment": {
+    "runtimefit": "0.1.0",
+    "python": "3.14.7",
+    "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "processor": "arm",
+    "logical_cpu_count": 10,
+    "physical_memory_bytes": 34359738368,
+    "tools": {
+      "llama.cpp": {
+        "available": true,
+        "path": "/opt/homebrew/bin/llama-server",
+        "version_output": "version: 8640 (7992aa7c8)"
+      },
+      "ollama": {
+        "available": true,
+        "path": "/opt/homebrew/bin/ollama",
+        "version_output": "ollama version is 0.33.0"
+      },
+      "vllm": {
+        "available": false
+      },
+      "nvidia": {
+        "available": false
+      }
+    }
+  },
+  "recommendation": {
+    "target": "llama.cpp-8640-metal-fa-auto@c2",
+    "reasons": {
+      "llama.cpp-8640-metal-fa-auto@c4": "p95 latency exceeds configured limit",
+      "llama.cpp-8640-metal-fa-off@c4": "p95 latency exceeds configured limit",
+      "llama.cpp-8640-metal-fa-auto@c1": "eligible but not optimal for the configured objective",
+      "llama.cpp-8640-metal-fa-auto@c2": "best eligible target for objective 'throughput'",
+      "llama.cpp-8640-metal-fa-off@c1": "eligible but not optimal for the configured objective",
+      "llama.cpp-8640-metal-fa-off@c2": "eligible but not optimal for the configured objective"
+    }
+  },
+  "pareto_frontier": [
+    "llama.cpp-8640-metal-fa-auto@c1",
+    "llama.cpp-8640-metal-fa-auto@c2",
+    "llama.cpp-8640-metal-fa-auto@c4"
+  ],
+  "targets": [
+    {
+      "name": "llama.cpp-8640-metal-fa-auto@c1",
+      "adapter": "openai",
+      "metrics": {
+        "requests": 10,
+        "successful_requests": 10,
+        "error_rate": 0.0,
+        "quality": null,
+        "latency_p50_ms": 1923.9602705056313,
+        "latency_p95_ms": 2088.8660667071235,
+        "latency_p99_ms": 2112.2170469598495,
+        "ttft_p50_ms": 46.759812015807256,
+        "ttft_p95_ms": 249.00011280697072,
+        "output_tokens": 542,
+        "output_tokens_per_second": 32.09867519742992,
+        "requests_per_second": 0.5922264796573785,
+        "wall_seconds": 16.885432082985062,
+        "concurrency": 1,
+        "server_startup_seconds": 4.102346667001257,
+        "cost_per_hour_usd": null,
+        "estimated_usd_per_million_output_tokens": null
+      },
+      "samples": [
+        {
+          "item_id": "code",
+          "repetition": 0,
+          "latency_ms": 2118.054792023031,
+          "ttft_ms": 245.15070900088176,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 0,
+          "latency_ms": 2053.190957987681,
+          "ttft_ms": 252.1496250119526,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 0,
+          "latency_ms": 1430.0178329867776,
+          "ttft_ms": 44.88391600898467,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 0,
+          "latency_ms": 1211.091666977154,
+          "ttft_ms": 227.33120797784068,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 0,
+          "latency_ms": 1986.9300000136718,
+          "ttft_ms": 244.05291699804366,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "code",
+          "repetition": 1,
+          "latency_ms": 1916.5852910082322,
+          "ttft_ms": 46.17416602559388,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 1,
+          "latency_ms": 1931.3352500030305,
+          "ttft_ms": 44.424167019315064,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 1,
+          "latency_ms": 1309.7087499918416,
+          "ttft_ms": 45.714792009675875,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 1,
+          "latency_ms": 981.1270000063814,
+          "ttft_ms": 36.16533300373703,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 1,
+          "latency_ms": 1943.6533330008388,
+          "ttft_ms": 47.345458006020635,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "llama.cpp-8640-metal-fa-auto@c2",
+      "adapter": "openai",
+      "metrics": {
+        "requests": 10,
+        "successful_requests": 10,
+        "error_rate": 0.0,
+        "quality": null,
+        "latency_p50_ms": 2852.1067914989544,
+        "latency_p95_ms": 3325.5629458086332,
+        "latency_p99_ms": 3333.1675555574475,
+        "ttft_p50_ms": 94.93591700447723,
+        "ttft_p95_ms": 242.03708315180847,
+        "output_tokens": 542,
+        "output_tokens_per_second": 38.31757135445983,
+        "requests_per_second": 0.7069662611523954,
+        "wall_seconds": 14.14494658302283,
+        "concurrency": 2,
+        "server_startup_seconds": 4.102346667001257,
+        "cost_per_hour_usd": null,
+        "estimated_usd_per_million_output_tokens": null
+      },
+      "samples": [
+        {
+          "item_id": "code",
+          "repetition": 0,
+          "latency_ms": 3235.6719999806955,
+          "ttft_ms": 94.0714169992134,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 0,
+          "latency_ms": 3214.2066250089556,
+          "ttft_ms": 86.22470899717882,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 0,
+          "latency_ms": 2415.3977500100154,
+          "ttft_ms": 242.14658301207237,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 0,
+          "latency_ms": 1886.578332982026,
+          "ttft_ms": 241.9032499892637,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 0,
+          "latency_ms": 3226.031833997695,
+          "ttft_ms": 88.35416700458154,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "code",
+          "repetition": 1,
+          "latency_ms": 2490.006957988953,
+          "ttft_ms": 95.5298749904614,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 1,
+          "latency_ms": 3313.9447920257226,
+          "ttft_ms": 95.47187501448207,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 1,
+          "latency_ms": 2293.5604999947827,
+          "ttft_ms": 93.9940829994157,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 1,
+          "latency_ms": 1760.573834006209,
+          "ttft_ms": 94.3999589944724,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 1,
+          "latency_ms": 3335.068707994651,
+          "ttft_ms": 97.00758298276924,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "llama.cpp-8640-metal-fa-auto@c4",
+      "adapter": "openai",
+      "metrics": {
+        "requests": 10,
+        "successful_requests": 10,
+        "error_rate": 0.0,
+        "quality": null,
+        "latency_p50_ms": 3254.064124994329,
+        "latency_p95_ms": 4277.22577949171,
+        "latency_p99_ms": 4277.316589491675,
+        "ttft_p50_ms": 131.68906248756684,
+        "ttft_p95_ms": 355.74828588578384,
+        "output_tokens": 542,
+        "output_tokens_per_second": 56.432867267069604,
+        "requests_per_second": 1.0411968130455647,
+        "wall_seconds": 9.604332125018118,
+        "concurrency": 4,
+        "server_startup_seconds": 4.102346667001257,
+        "cost_per_hour_usd": null,
+        "estimated_usd_per_million_output_tokens": null
+      },
+      "samples": [
+        {
+          "item_id": "code",
+          "repetition": 0,
+          "latency_ms": 4063.2612080080435,
+          "ttft_ms": 121.99099999270402,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 0,
+          "latency_ms": 4277.339291991666,
+          "ttft_ms": 355.1582919899374,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 0,
+          "latency_ms": 3103.79875000217,
+          "ttft_ms": 356.0562919883523,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 0,
+          "latency_ms": 2422.626749990741,
+          "ttft_ms": 355.3718339826446,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 0,
+          "latency_ms": 4277.087041991763,
+          "ttft_ms": 354.6682499872986,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "code",
+          "repetition": 1,
+          "latency_ms": 3117.189457989298,
+          "ttft_ms": 111.64549997192807,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 1,
+          "latency_ms": 3735.115124989534,
+          "ttft_ms": 131.52329198783264,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 1,
+          "latency_ms": 2883.5426250007004,
+          "ttft_ms": 116.35912500787526,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 1,
+          "latency_ms": 2208.5944169957656,
+          "ttft_ms": 131.85483298730105,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 1,
+          "latency_ms": 3390.9387919993605,
+          "ttft_ms": 124.36958297621459,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "llama.cpp-8640-metal-fa-off@c1",
+      "adapter": "openai",
+      "metrics": {
+        "requests": 10,
+        "successful_requests": 10,
+        "error_rate": 0.0,
+        "quality": null,
+        "latency_p50_ms": 1947.739895505947,
+        "latency_p95_ms": 2193.424118454277,
+        "latency_p99_ms": 2213.0160236972733,
+        "ttft_p50_ms": 77.35485398734454,
+        "ttft_p95_ms": 263.8092981011141,
+        "output_tokens": 542,
+        "output_tokens_per_second": 31.043830100712185,
+        "requests_per_second": 0.5727643930020698,
+        "wall_seconds": 17.459185874991817,
+        "concurrency": 1,
+        "server_startup_seconds": 1.2702847500040662,
+        "cost_per_hour_usd": null,
+        "estimated_usd_per_million_output_tokens": null
+      },
+      "samples": [
+        {
+          "item_id": "code",
+          "repetition": 0,
+          "latency_ms": 2163.4920409996994,
+          "ttft_ms": 259.9273750092834,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 0,
+          "latency_ms": 2082.4307919829153,
+          "ttft_ms": 252.4943749886006,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 0,
+          "latency_ms": 1372.0771670050453,
+          "ttft_ms": 43.84187498362735,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 0,
+          "latency_ms": 1245.5086249974556,
+          "ttft_ms": 233.7748330028262,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 0,
+          "latency_ms": 2217.9140000080224,
+          "ttft_ms": 266.9854169944301,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "code",
+          "repetition": 1,
+          "latency_ms": 2010.8775830012746,
+          "ttft_ms": 60.60133301070891,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 1,
+          "latency_ms": 1922.5779580010567,
+          "ttft_ms": 54.8778329975903,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 1,
+          "latency_ms": 1406.5366249997169,
+          "ttft_ms": 87.86133298417553,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 1,
+          "latency_ms": 1062.5842079753056,
+          "ttft_ms": 56.440957996528596,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 1,
+          "latency_ms": 1972.9018330108374,
+          "ttft_ms": 66.84837499051355,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "llama.cpp-8640-metal-fa-off@c2",
+      "adapter": "openai",
+      "metrics": {
+        "requests": 10,
+        "successful_requests": 10,
+        "error_rate": 0.0,
+        "quality": null,
+        "latency_p50_ms": 3207.936228995095,
+        "latency_p95_ms": 3864.3485894048354,
+        "latency_p99_ms": 3926.670784286107,
+        "ttft_p50_ms": 338.53358300984837,
+        "ttft_p95_ms": 373.9324999827659,
+        "output_tokens": 542,
+        "output_tokens_per_second": 33.84485692428605,
+        "requests_per_second": 0.6244438546916244,
+        "wall_seconds": 16.01425000000745,
+        "concurrency": 2,
+        "server_startup_seconds": 1.2702847500040662,
+        "cost_per_hour_usd": null,
+        "estimated_usd_per_million_output_tokens": null
+      },
+      "samples": [
+        {
+          "item_id": "code",
+          "repetition": 0,
+          "latency_ms": 3942.251333006425,
+          "ttft_ms": 373.75237498781644,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 0,
+          "latency_ms": 3662.90308299358,
+          "ttft_ms": 270.17116599017754,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 0,
+          "latency_ms": 2633.420208003372,
+          "ttft_ms": 261.5285420033615,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 0,
+          "latency_ms": 1917.9247500142083,
+          "ttft_ms": 261.2633340177126,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 0,
+          "latency_ms": 3769.1341250028927,
+          "ttft_ms": 351.2607080047019,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "code",
+          "repetition": 1,
+          "latency_ms": 2752.96937499661,
+          "ttft_ms": 374.0798749786336,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 1,
+          "latency_ms": 3736.8868330086116,
+          "ttft_ms": 356.53870800160803,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 1,
+          "latency_ms": 2523.2220829930156,
+          "ttft_ms": 335.66979100578465,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 1,
+          "latency_ms": 2202.127875003498,
+          "ttft_ms": 295.8398750051856,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 1,
+          "latency_ms": 3765.4337080020923,
+          "ttft_ms": 341.3973750139121,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        }
+      ]
+    },
+    {
+      "name": "llama.cpp-8640-metal-fa-off@c4",
+      "adapter": "openai",
+      "metrics": {
+        "requests": 10,
+        "successful_requests": 10,
+        "error_rate": 0.0,
+        "quality": null,
+        "latency_p50_ms": 4012.284125012229,
+        "latency_p95_ms": 5452.006354350306,
+        "latency_p99_ms": 5452.276504483016,
+        "ttft_p50_ms": 345.4683330055559,
+        "ttft_p95_ms": 1074.6042979430058,
+        "output_tokens": 542,
+        "output_tokens_per_second": 47.594327902054594,
+        "requests_per_second": 0.8781241310342177,
+        "wall_seconds": 11.387911625002744,
+        "concurrency": 4,
+        "server_startup_seconds": 1.2702847500040662,
+        "cost_per_hour_usd": null,
+        "estimated_usd_per_million_output_tokens": null
+      },
+      "samples": [
+        {
+          "item_id": "code",
+          "repetition": 0,
+          "latency_ms": 4701.87133300351,
+          "ttft_ms": 391.35083300061524,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 0,
+          "latency_ms": 5452.344042016193,
+          "ttft_ms": 1072.694083006354,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 0,
+          "latency_ms": 4182.028750015888,
+          "ttft_ms": 1074.677291995613,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 0,
+          "latency_ms": 3229.4720000063535,
+          "ttft_ms": 1074.5150829898193,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 0,
+          "latency_ms": 5451.593624980887,
+          "ttft_ms": 1072.321457992075,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "code",
+          "repetition": 1,
+          "latency_ms": 3455.216666974593,
+          "ttft_ms": 227.06508298870176,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "reasoning",
+          "repetition": 1,
+          "latency_ms": 4199.65295799193,
+          "ttft_ms": 240.77887501334772,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "short",
+          "repetition": 1,
+          "latency_ms": 3075.972291000653,
+          "ttft_ms": 202.058291004505,
+          "output_tokens": 45,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "structured",
+          "repetition": 1,
+          "latency_ms": 2478.814792004414,
+          "ttft_ms": 240.96933301188983,
+          "output_tokens": 34,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        },
+        {
+          "item_id": "summary",
+          "repetition": 1,
+          "latency_ms": 3842.53950000857,
+          "ttft_ms": 299.5858330104966,
+          "output_tokens": 64,
+          "token_count_source": "reported",
+          "quality": null,
+          "error": null
+        }
+      ]
+    }
+  ]
+}

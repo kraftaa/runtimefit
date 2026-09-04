@@ -1,0 +1,81 @@
+name = "production-chat-deployment"
+objective = "lowest_monthly_cost"
+
+[workload]
+description = "Production chat trace"
+requests_per_second = 8
+source = "production.jsonl"
+
+[cost]
+hours_per_month = 730
+
+[requirements]
+p95_ttft_ms = 500
+p99_latency_ms = 4000
+min_request_throughput_rps = 8
+max_error_rate = 0.01
+max_monthly_cost_usd = 1800
+
+[[candidates]]
+id = "sglang-fp16-c8"
+runtime = "sglang"
+quantization = "fp16"
+concurrency = 8
+monthly_cost_usd = 1430
+[candidates.evidence]
+provider = "inline"
+[candidates.evidence.metrics]
+ttft_p95_ms = 312
+latency_p99_ms = 2800
+request_throughput_rps = 10.4
+output_token_throughput_tps = 1240
+error_rate = 0.001
+gpu_memory_gb = 43.2
+
+[[candidates]]
+id = "vllm-fp16-c8"
+runtime = "vllm"
+quantization = "fp16"
+concurrency = 8
+monthly_cost_usd = 1775
+[candidates.evidence]
+provider = "inline"
+[candidates.evidence.metrics]
+ttft_p95_ms = 284
+latency_p99_ms = 2600
+request_throughput_rps = 10.8
+output_token_throughput_tps = 1275
+error_rate = 0.001
+gpu_memory_gb = 44.1
+
+[[candidates]]
+id = "vllm-awq-c8"
+runtime = "vllm"
+quantization = "awq"
+concurrency = 8
+monthly_cost_usd = 1170
+[candidates.evidence]
+provider = "inline"
+[candidates.evidence.metrics]
+ttft_p95_ms = 346
+latency_p99_ms = 4250
+request_throughput_rps = 10.1
+output_token_throughput_tps = 1180
+error_rate = 0.002
+gpu_memory_gb = 24.0
+
+[[candidates]]
+id = "sglang-awq-c8"
+runtime = "sglang"
+quantization = "awq"
+concurrency = 8
+monthly_cost_usd = 900
+[candidates.evidence]
+provider = "inline"
+[candidates.evidence.metrics]
+ttft_p95_ms = 620
+latency_p99_ms = 3500
+request_throughput_rps = 8.3
+output_token_throughput_tps = 820
+error_rate = 0.003
+gpu_memory_gb = 12.5

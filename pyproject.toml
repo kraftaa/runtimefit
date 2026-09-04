@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "runtimefit"
+version = "0.1.0"
+description = "Evidence-backed deployment decisions for LLM inference."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "RuntimeFit contributors"}]
+keywords = ["llm", "inference", "benchmark", "performance", "deployment", "slo"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/kraftaa/runtimefit"
+Repository = "https://github.com/kraftaa/runtimefit"
+Issues = "https://github.com/kraftaa/runtimefit/issues"
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0,<7"]
+
+[project.scripts]
+runtimefit = "runtimefit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

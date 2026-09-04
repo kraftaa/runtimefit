@@ -1,0 +1,29 @@
+{
+  "name": "openai-compatible-comparison",
+  "dataset": "prompts.jsonl",
+  "objective": "latency",
+  "constraints": {"max_quality_loss": 0.01, "max_error_rate": 0.0},
+  "run": {"warmup": 1, "repetitions": 3, "concurrency": 4, "timeout_s": 60},
+  "targets": [
+    {
+      "name": "local-server-a",
+      "adapter": "openai",
+      "options": {
+        "base_url": "http://127.0.0.1:8000/v1",
+        "model": "your-model-name",
+        "streaming": true,
+        "generation": {"temperature": 0, "max_tokens": 32}
+      }
+    },
+    {
+      "name": "local-server-b",
+      "adapter": "openai",
+      "options": {
+        "base_url": "http://127.0.0.1:8001/v1",
+        "model": "your-model-name",
+        "streaming": true,
+        "generation": {"temperature": 0, "max_tokens": 32}
+      }
+    }
+  ]
+}

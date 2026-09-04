@@ -1,0 +1,57 @@
+{
+  "name": "apple-m1-pro-llama2-7b-q4-smoke",
+  "dataset": "workload.jsonl",
+  "objective": "throughput",
+  "constraints": {"max_error_rate": 0.0, "max_p95_latency_ms": 4000},
+  "run": {"warmup": 1, "repetitions": 2, "concurrency": [1, 2, 4], "timeout_s": 120},
+  "targets": [
+    {
+      "name": "llama.cpp-8640-metal-fa-auto",
+      "adapter": "openai",
+      "launch": {
+        "command": [
+          "llama-server", "-m", "${RUNTIMEFIT_MODEL}",
+          "--host", "127.0.0.1", "--port", "8181",
+          "-ngl", "99", "--ctx-size", "2048"
+        ],
+        "health_url": "http://127.0.0.1:8181/health",
+        "startup_timeout_s": 120
+      },
+      "options": {
+        "base_url": "http://127.0.0.1:8181/v1",
+        "model": "llama-2-7b-chat.Q4_0.gguf",
+        "streaming": true,
+        "generation": {
+          "temperature": 0,
+          "max_tokens": 64,
+          "seed": 42,
+          "stream_options": {"include_usage": true}
+        }
+      }
+    },
+    {
+      "name": "llama.cpp-8640-metal-fa-off",
+      "adapter": "openai",
+      "launch": {
+        "command": [
+          "llama-server", "-m", "${RUNTIMEFIT_MODEL}",
+          "--host", "127.0.0.1", "--port", "8181",
+          "-ngl", "99", "--ctx-size", "2048", "--flash-attn", "off"
+        ],
+        "health_url": "http://127.0.0.1:8181/health",
+        "startup_timeout_s": 120
+      },
+      "options": {
+        "base_url": "http://127.0.0.1:8181/v1",
+        "model": "llama-2-7b-chat.Q4_0.gguf",
+        "streaming": true,
+        "generation": {
+          "temperature": 0,
+          "max_tokens": 64,
+          "seed": 42,
+          "stream_options": {"include_usage": true}
+        }
+      }
+    }
+  ]
+}

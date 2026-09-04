@@ -1,0 +1,3 @@
+{"id":"capital-france","prompt":"What is the capital of France? Answer with one word.","expected":"Paris","match":"exact"}
+{"id":"capital-japan","prompt":"What is the capital of Japan? Answer with one word.","expected":"Tokyo","match":"exact"}
+{"id":"capital-italy","prompt":"What is the capital of Italy? Answer with one word.","expected":"Rome","match":"exact"}

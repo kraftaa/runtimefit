@@ -1,0 +1,5 @@
+{"id":"short","prompt":"Explain why leaves look green in one short sentence."}
+{"id":"structured","prompt":"Return a JSON object with keys name, category, and confidence for this text: 'The customer cannot reset their password.'"}
+{"id":"reasoning","prompt":"A shop has 18 notebooks. It sells one third of them and receives 5 more. How many notebooks does it have? Give the answer and one sentence of working."}
+{"id":"summary","prompt":"Summarize this in no more than 25 words: Reproducible benchmarks pin software versions, publish workloads, describe hardware, repeat measurements, and preserve raw results so that independent developers can verify performance claims."}
+{"id":"code","prompt":"Write a Python function named clamp that returns a number limited to an inclusive lower and upper bound. Return only the function."}

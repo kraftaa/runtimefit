@@ -1,0 +1,43 @@
+{
+  "name": "local-harness-demo",
+  "dataset": "prompts.jsonl",
+  "objective": "throughput",
+  "constraints": {
+    "max_quality_loss": 0.01,
+    "max_error_rate": 0.0
+  },
+  "run": {
+    "warmup": 1,
+    "repetitions": 2,
+    "concurrency": 2,
+    "timeout_s": 30
+  },
+  "targets": [
+    {
+      "name": "reference-runtime",
+      "adapter": "mock",
+      "options": {
+        "latency_ms": 35,
+        "ttft_ms": 18,
+        "responses": {
+          "What is the capital of France? Answer with one word.": "Paris",
+          "What is the capital of Japan? Answer with one word.": "Tokyo",
+          "What is the capital of Italy? Answer with one word.": "Rome"
+        }
+      }
+    },
+    {
+      "name": "optimized-runtime",
+      "adapter": "mock",
+      "options": {
+        "latency_ms": 12,
+        "ttft_ms": 6,
+        "responses": {
+          "What is the capital of France? Answer with one word.": "Paris",
+          "What is the capital of Japan? Answer with one word.": "Tokyo",
+          "What is the capital of Italy? Answer with one word.": "Rome"
+        }
+      }
+    }
+  ]
+}
