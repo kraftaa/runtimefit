@@ -2,10 +2,12 @@
 
 **Benchmarks measure. RuntimeFit decides.**
 
-RuntimeFit is a constraint-based deployment decision engine for LLM inference. It
-consumes benchmark evidence, rejects configurations that violate production
-requirements, exposes the Pareto frontier, and recommends what to deploy with a
-machine-readable explanation.
+RuntimeFit is an open-source decision engine that turns LLM inference benchmarks into
+deployment recommendations.
+
+Give it your workload evidence, deployment constraints, and candidate configurations.
+RuntimeFit rejects configurations that violate your SLOs, exposes the Pareto frontier,
+and explains which configuration to deploy and why.
 
 RuntimeFit answers: **Given my workload and SLOs, what should I actually deploy?**
 
