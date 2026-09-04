@@ -9,7 +9,7 @@ from runtimefit import __version__
 from runtimefit.config import ConfigError, load_config
 from runtimefit.decision import choose
 from runtimefit.decision_config import load_decision_config
-from runtimefit.decision_report import decision_markdown
+from runtimefit.decision_report import decision_markdown, format_failed_checks
 from runtimefit.environment import collect_environment
 from runtimefit.report import markdown_report
 from runtimefit.runner import run_benchmark
@@ -76,6 +76,14 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Winner: {summary['selected'] or 'none'}")
             if summary["reason"]:
                 print(f"Reason: {summary['reason']}.")
+            if summary.get("fastest_candidate") and not summary.get("fastest_candidate_eligible"):
+                print(f"Fastest rejected: {summary['fastest_candidate']}")
+                fastest = next(
+                    candidate for candidate in decision["candidates"]
+                    if candidate["id"] == summary["fastest_candidate"]
+                )
+                for reason in format_failed_checks(fastest):
+                    print(f"  - {reason}")
             print(f"Evidence: {output}")
             return 0 if summary["selected"] else 2
         if args.command == "validate":

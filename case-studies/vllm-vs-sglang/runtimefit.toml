@@ -1,0 +1,85 @@
+name = "real-vllm-vs-sglang"
+objective = "lowest_monthly_cost"
+
+[workload]
+description = "Sanitized production-style chat workload; see README protocol"
+requests_per_second = 8
+source = "workload.jsonl"
+
+[cost]
+hours_per_month = 730
+
+[requirements]
+p95_ttft_ms = 400
+p99_latency_ms = 3000
+min_request_throughput_rps = 7
+max_error_rate = 0.005
+min_throughput_headroom_fraction = 0.10
+max_monthly_cost_usd = 2000
+
+[[candidates]]
+id = "vllm-fp16-c4"
+runtime = "vllm"
+quantization = "fp16"
+concurrency = 4
+cost_per_hour_usd = 1.00 # Replace with the real per-replica host price before running.
+[candidates.evidence]
+provider = "guidellm"
+paths = ["results/vllm/c4/run-1.json", "results/vllm/c4/run-2.json", "results/vllm/c4/run-3.json"]
+benchmark_index = 0
+
+[[candidates]]
+id = "vllm-fp16-c8"
+runtime = "vllm"
+quantization = "fp16"
+concurrency = 8
+cost_per_hour_usd = 1.00
+[candidates.evidence]
+provider = "guidellm"
+paths = ["results/vllm/c8/run-1.json", "results/vllm/c8/run-2.json", "results/vllm/c8/run-3.json"]
+benchmark_index = 0
+
+[[candidates]]
+id = "vllm-fp16-c16"
+runtime = "vllm"
+quantization = "fp16"
+concurrency = 16
+cost_per_hour_usd = 1.00
+[candidates.evidence]
+provider = "guidellm"
+paths = ["results/vllm/c16/run-1.json", "results/vllm/c16/run-2.json", "results/vllm/c16/run-3.json"]
+benchmark_index = 0
+
+[[candidates]]
+id = "sglang-fp16-c4"
+runtime = "sglang"
+quantization = "fp16"
+concurrency = 4
+cost_per_hour_usd = 1.00
+[candidates.evidence]
+provider = "guidellm"
+paths = ["results/sglang/c4/run-1.json", "results/sglang/c4/run-2.json", "results/sglang/c4/run-3.json"]
+benchmark_index = 0
+
+[[candidates]]
+id = "sglang-fp16-c8"
+runtime = "sglang"
+quantization = "fp16"
+concurrency = 8
+cost_per_hour_usd = 1.00
+[candidates.evidence]
+provider = "guidellm"
+paths = ["results/sglang/c8/run-1.json", "results/sglang/c8/run-2.json", "results/sglang/c8/run-3.json"]
+benchmark_index = 0
+
+[[candidates]]
+id = "sglang-fp16-c16"
+runtime = "sglang"
+quantization = "fp16"
+concurrency = 16
+cost_per_hour_usd = 1.00
+[candidates.evidence]
+provider = "guidellm"
+paths = ["results/sglang/c16/run-1.json", "results/sglang/c16/run-2.json", "results/sglang/c16/run-3.json"]
+benchmark_index = 0
+

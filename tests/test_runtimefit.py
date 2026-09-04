@@ -40,11 +40,20 @@ class RuntimeFitTests(unittest.TestCase):
         result = choose(config)
         self.assertEqual(result["summary"]["eligible_count"], 2)
         self.assertEqual(result["summary"]["selected"], "sglang-fp16-c8")
+        self.assertEqual(result["summary"]["fastest_candidate"], "vllm-awq-c8")
+        self.assertFalse(result["summary"]["fastest_candidate_eligible"])
         self.assertNotEqual(result["decision_fingerprint"], result["config_fingerprint"])
+        selected = next(candidate for candidate in result["candidates"] if candidate["id"] == "sglang-fp16-c8")
+        self.assertEqual(selected["metrics"]["required_replicas"], 1)
+        self.assertAlmostEqual(selected["metrics"]["throughput_headroom_fraction"], 0.3)
+        self.assertAlmostEqual(selected["metrics"]["monthly_cost_usd"], 1430.8)
+        scaled = next(candidate for candidate in result["candidates"] if candidate["id"] == "sglang-awq-c8")
+        self.assertEqual(scaled["metrics"]["required_replicas"], 2)
         report = decision_markdown(result)
         self.assertIn("2/4 configurations", report)
         self.assertIn("Requirement checks", report)
-        self.assertIn("latency_p99_ms 4250 exceeds requirement 4000", report)
+        self.assertIn("Fastest candidate rejected", report)
+        self.assertIn("p99 latency 4.25 s > 4.00 s", report)
 
     def test_guidellm_v2_evidence_is_normalized(self) -> None:
         def distribution(p50: float, p95: float, p99: float, mean: float = 0.0) -> dict:
@@ -82,6 +91,38 @@ class RuntimeFitTests(unittest.TestCase):
         self.assertEqual(loaded["metrics"]["error_rate"], 0.01)
         self.assertEqual(loaded["metrics"]["monthly_cost_usd"], 1460)
         self.assertEqual(loaded["source"]["guidellm_version"], "0.7.0")
+
+    def test_guidellm_repeated_evidence_uses_median_and_records_variability(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = []
+            for index, p99_seconds in enumerate((2.0, 5.0, 3.0), start=1):
+                report = {
+                    "metadata": {"version": 2, "guidellm_version": "0.7.2"},
+                    "benchmarks": [{
+                        "config": {"id_": f"run-{index}", "run_index": 0},
+                        "metrics": {
+                            "request_latency": {"successful": {
+                                "percentiles": {"p50": 1.0, "p95": 1.5, "p99": p99_seconds}
+                            }},
+                            "requests_per_second": {"successful": {"mean": 10 + index}},
+                            "request_totals": {"successful": 100, "errored": 0, "total": 100},
+                        },
+                    }],
+                }
+                path = root / f"run-{index}.json"
+                path.write_text(json.dumps(report), encoding="utf-8")
+                paths.append(path.name)
+            loaded = load_candidate_evidence({
+                "id": "candidate",
+                "runtime": "vllm",
+                "evidence": {"provider": "guidellm", "paths": paths, "benchmark_index": 0},
+            }, root, 730)
+        self.assertEqual(loaded["metrics"]["latency_p99_ms"], 3000)
+        self.assertEqual(loaded["metrics"]["request_throughput_rps"], 12)
+        self.assertEqual(loaded["source"]["run_count"], 3)
+        self.assertEqual(len(loaded["source"]["runs"]), 3)
+        self.assertEqual(loaded["source"]["variability"]["latency_p99_ms"]["relative_range"], 1.0)
 
     def test_decision_config_rejects_runtime_outside_v01_scope(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

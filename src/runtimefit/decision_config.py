@@ -84,8 +84,25 @@ def validate_decision_config(data: Any) -> None:
                 raise ConfigError(f"candidates[{index}] runtimefit evidence requires path and target")
         if provider == "guidellm":
             benchmark_index = evidence.get("benchmark_index")
-            if not isinstance(evidence.get("path"), str) or not isinstance(benchmark_index, int) or benchmark_index < 0:
-                raise ConfigError(f"candidates[{index}] guidellm evidence requires path and non-negative benchmark_index")
+            path = evidence.get("path")
+            paths = evidence.get("paths")
+            has_path = isinstance(path, str) and bool(path.strip())
+            has_paths = (
+                isinstance(paths, list)
+                and bool(paths)
+                and all(isinstance(item, str) and item.strip() for item in paths)
+            )
+            if has_path == has_paths:
+                raise ConfigError(
+                    f"candidates[{index}] guidellm evidence requires exactly one of path or non-empty paths"
+                )
+            if not isinstance(benchmark_index, int) or benchmark_index < 0:
+                raise ConfigError(
+                    f"candidates[{index}] guidellm evidence requires a non-negative benchmark_index"
+                )
+            aggregation = evidence.get("aggregation", "median")
+            if aggregation != "median":
+                raise ConfigError("GuideLLM repeated evidence currently supports aggregation = 'median'")
         for cost_key in ("monthly_cost_usd", "cost_per_hour_usd"):
             cost_value = candidate.get(cost_key)
             if cost_value is not None and (
@@ -103,6 +120,7 @@ def validate_decision_config(data: Any) -> None:
         "min_request_throughput_rps",
         "min_output_token_throughput_tps",
         "max_gpu_memory_gb",
+        "min_throughput_headroom_fraction",
     }
     unknown = set(requirements) - supported
     if unknown:
@@ -126,3 +144,17 @@ def validate_decision_config(data: Any) -> None:
     hours = cost.get("hours_per_month", 730)
     if not isinstance(hours, (int, float)) or isinstance(hours, bool) or hours <= 0:
         raise ConfigError("cost.hours_per_month must be a positive number")
+    workload = data.get("workload", {})
+    if not isinstance(workload, dict):
+        raise ConfigError("workload must be an object")
+    requests_per_second = workload.get("requests_per_second")
+    if requests_per_second is not None and (
+        not isinstance(requests_per_second, (int, float))
+        or isinstance(requests_per_second, bool)
+        or requests_per_second <= 0
+    ):
+        raise ConfigError("workload.requests_per_second must be a positive number")
+    if "min_throughput_headroom_fraction" in requirements and requests_per_second is None:
+        raise ConfigError(
+            "workload.requests_per_second is required when min_throughput_headroom_fraction is set"
+        )

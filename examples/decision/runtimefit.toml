@@ -15,13 +15,14 @@ p99_latency_ms = 4000
 min_request_throughput_rps = 8
 max_error_rate = 0.01
 max_monthly_cost_usd = 1800
+min_throughput_headroom_fraction = 0.10
 
 [[candidates]]
 id = "sglang-fp16-c8"
 runtime = "sglang"
 quantization = "fp16"
 concurrency = 8
-monthly_cost_usd = 1430
+cost_per_hour_usd = 1.96
 [candidates.evidence]
 provider = "inline"
 [candidates.evidence.metrics]
@@ -37,7 +38,7 @@ id = "vllm-fp16-c8"
 runtime = "vllm"
 quantization = "fp16"
 concurrency = 8
-monthly_cost_usd = 1775
+cost_per_hour_usd = 2.43
 [candidates.evidence]
 provider = "inline"
 [candidates.evidence.metrics]
@@ -53,14 +54,14 @@ id = "vllm-awq-c8"
 runtime = "vllm"
 quantization = "awq"
 concurrency = 8
-monthly_cost_usd = 1170
+cost_per_hour_usd = 1.60
 [candidates.evidence]
 provider = "inline"
 [candidates.evidence.metrics]
 ttft_p95_ms = 346
 latency_p99_ms = 4250
-request_throughput_rps = 10.1
-output_token_throughput_tps = 1180
+request_throughput_rps = 12.1
+output_token_throughput_tps = 1400
 error_rate = 0.002
 gpu_memory_gb = 24.0
 
@@ -69,7 +70,7 @@ id = "sglang-awq-c8"
 runtime = "sglang"
 quantization = "awq"
 concurrency = 8
-monthly_cost_usd = 900
+cost_per_hour_usd = 1.23
 [candidates.evidence]
 provider = "inline"
 [candidates.evidence.metrics]

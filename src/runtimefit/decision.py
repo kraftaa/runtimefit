@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ REQUIREMENTS = {
     "min_request_throughput_rps": ("request_throughput_rps", "min"),
     "min_output_token_throughput_tps": ("output_token_throughput_tps", "min"),
     "max_gpu_memory_gb": ("gpu_memory_gb", "max"),
+    "min_throughput_headroom_fraction": ("throughput_headroom_fraction", "min"),
 }
 
 OBJECTIVES = {
@@ -47,6 +49,8 @@ def choose(config: dict[str, Any]) -> dict[str, Any]:
     for candidate in config["candidates"]:
         loaded = load_candidate_evidence(candidate, base_dir, hours_per_month)
         metrics = loaded["metrics"]
+        _add_capacity_metrics(metrics, candidate, config, hours_per_month)
+        warnings = _variability_warnings(loaded["source"])
         failures: list[str] = []
         checks: list[dict[str, Any]] = []
         for requirement, limit in requirements.items():
@@ -75,6 +79,7 @@ def choose(config: dict[str, Any]) -> dict[str, Any]:
             "eligible": not failures,
             "checks": checks,
             "rejection_reasons": failures,
+            "warnings": warnings,
         })
     objective_metric, objective_direction = OBJECTIVES[objective]
     eligible = [candidate for candidate in evaluated if candidate["eligible"]]
@@ -87,6 +92,14 @@ def choose(config: dict[str, Any]) -> dict[str, Any]:
     else:
         selected_id = None
     frontier = _pareto_frontier(evaluated)
+    fastest = max(
+        (
+            candidate for candidate in evaluated
+            if candidate["metrics"].get("request_throughput_rps") is not None
+        ),
+        key=lambda candidate: candidate["metrics"]["request_throughput_rps"],
+        default=None,
+    )
     for candidate in evaluated:
         candidate["comparison_to_selected"] = _comparison(candidate, selected if rankable else None)
     public_config = {key: value for key, value in config.items() if not key.startswith("_")}
@@ -127,10 +140,49 @@ def choose(config: dict[str, Any]) -> dict[str, Any]:
             "eligible_count": len(eligible),
             "selected": selected_id,
             "reason": reason,
+            "fastest_candidate": fastest["id"] if fastest else None,
+            "fastest_candidate_eligible": fastest["eligible"] if fastest else None,
+            "fastest_candidate_rejection_reasons": fastest["rejection_reasons"] if fastest else [],
         },
         "pareto_frontier": frontier,
         "candidates": evaluated,
     }
+
+
+def _variability_warnings(source: dict[str, Any], threshold: float = 0.15) -> list[str]:
+    warnings: list[str] = []
+    for metric, values in (source.get("variability") or {}).items():
+        relative_range = values.get("relative_range")
+        if relative_range is not None and relative_range > threshold:
+            warnings.append(
+                f"{metric} varied by {relative_range:.1%} across repeated evidence runs"
+            )
+    return warnings
+
+
+def _add_capacity_metrics(
+    metrics: dict[str, float],
+    candidate: dict[str, Any],
+    config: dict[str, Any],
+    hours_per_month: float,
+) -> None:
+    required_rps = (config.get("workload") or {}).get("requests_per_second")
+    per_replica_rps = metrics.get("request_throughput_rps")
+    required_headroom = (config.get("requirements") or {}).get(
+        "min_throughput_headroom_fraction", 0.0
+    )
+    replicas = 1
+    if required_rps is not None and per_replica_rps:
+        required_capacity = float(required_rps) * (1 + float(required_headroom))
+        replicas = max(1, math.ceil(required_capacity / per_replica_rps))
+        deployment_rps = per_replica_rps * replicas
+        metrics["required_replicas"] = float(replicas)
+        metrics["deployment_throughput_rps"] = deployment_rps
+        metrics["throughput_headroom_fraction"] = deployment_rps / float(required_rps) - 1
+    if candidate.get("cost_per_hour_usd") is not None:
+        metrics["monthly_cost_usd"] = (
+            float(candidate["cost_per_hour_usd"]) * hours_per_month * replicas
+        )
 
 
 def _pareto_frontier(candidates: list[dict[str, Any]]) -> list[str]:

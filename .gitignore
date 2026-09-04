@@ -6,4 +6,5 @@ __pycache__/
 dist/
 build/
 results/
-
+case-studies/*/workload.jsonl
+case-studies/*/results/

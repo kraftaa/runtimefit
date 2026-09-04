@@ -51,6 +51,8 @@ Example output:
 2/4 configurations satisfy requirements.
 Winner: sglang-fp16-c8
 Reason: lowest estimated monthly cost among candidates satisfying every requirement.
+Fastest rejected: vllm-awq-c8
+  - p99 latency 4.25 s > 4.00 s
 Evidence: results/decision.json
 ```
 
@@ -61,13 +63,15 @@ The metrics in the checked-in decision example are synthetic and demonstrate the
 selection contract; they are not performance claims about either runtime.
 
 Evidence providers currently include inline metrics, RuntimeFit's development runner,
-and GuideLLM report schema v2. See the [GuideLLM provider documentation](docs/providers/guidellm.md).
+and GuideLLM report schema v2. See the [GuideLLM provider documentation](https://github.com/kraftaa/runtimefit/blob/main/docs/providers/guidellm.md).
 
 The v0.1 decision contract supports vLLM and SGLang candidates across concurrency and
 quantization settings. Constraints cover TTFT, end-to-end latency, throughput, error
-rate, GPU memory, and monthly cost. RuntimeFit does not blend unlike measurements into
-an opaque score: it filters by hard requirements, ranks feasible candidates by one
-declared objective, and keeps the Pareto tradeoffs visible.
+rate, capacity headroom, GPU memory, and monthly cost. When hourly instance cost and
+required request rate are supplied, RuntimeFit derives the replica count and monthly
+deployment cost. RuntimeFit does not blend unlike measurements into an opaque score:
+it filters by hard requirements, ranks feasible candidates by one declared objective,
+and keeps the Pareto tradeoffs visible.
 
 Quality is deliberately outside the decision MVP. Comparing it responsibly requires a
 separate evaluator protocol, particularly when model weights or quantization change.
@@ -138,7 +142,7 @@ the named environment variable and never places its value in result files.
 - a SHA-256 fingerprint covering the sanitized configuration and dataset contents
 - individual samples for independent analysis
 
-See [the decision methodology](docs/methodology.md) for evidence normalization,
+See [the decision methodology](https://github.com/kraftaa/runtimefit/blob/main/docs/methodology.md) for evidence normalization,
 eligibility, ranking, Pareto analysis, and known limitations.
 
 ## Important limitations
@@ -167,7 +171,7 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 
 RuntimeFit is licensed under the MIT License.
 
-Maintainers should follow [the release guide](docs/releasing.md) for secure PyPI
+Maintainers should follow [the release guide](https://github.com/kraftaa/runtimefit/blob/main/docs/releasing.md) for secure PyPI
 Trusted Publishing and Homebrew tap updates.
 
 ## Real smoke result
@@ -177,3 +181,10 @@ smoke run against llama.cpp on Apple Silicon. It compares concurrency levels and
 Flash Attention settings. It proves that managed processes and streaming measurement
 work; with one old model and a tiny unlabelled workload, it is not evidence of general
 superiority or model quality.
+
+## Real vLLM vs SGLang case study
+
+The six-candidate, three-repetition protocol is checked in under
+[`case-studies/vllm-vs-sglang/`](https://github.com/kraftaa/runtimefit/tree/main/case-studies/vllm-vs-sglang). It is clearly
+marked as awaiting a Linux NVIDIA GPU, sanitized workload, and real measurements. The
+repository will not present placeholder or synthetic metrics as that case study.

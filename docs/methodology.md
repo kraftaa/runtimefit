@@ -11,11 +11,14 @@ The v0.1 decision contract intentionally accepts only vLLM and SGLang candidates
 
 1. Load each candidate's evidence from a supported provider.
 2. Normalize provider-specific measurements into canonical units and names.
-3. Calculate monthly cost from an explicit monthly value or hourly price assumption.
-4. Evaluate every declared requirement independently.
-5. Reject a candidate when it violates a limit or lacks a required measurement.
-6. Rank the remaining candidates by the one declared objective.
-7. Report the selection, every check and rejection, alternative comparisons, source
+3. Size the required replica count from workload demand, measured capacity, and the
+   configured headroom requirement.
+4. Calculate monthly deployment cost from replica count and hourly price, or accept an
+   explicitly pre-sized monthly value.
+5. Evaluate every declared requirement independently.
+6. Reject a candidate when it violates a limit or lacks a required measurement.
+7. Rank the remaining candidates by the one declared objective.
+8. Report the selection, every check and rejection, alternative comparisons, source
    hashes, and the Pareto frontier.
 
 RuntimeFit never converts latency, throughput, reliability, and cost into a hidden
@@ -51,15 +54,26 @@ measurement is a failed requirement, not an implicit pass. If no candidate is bo
 eligible and has the objective metric, RuntimeFit returns no recommendation and exits
 with a non-zero status.
 
-Monthly cost is either supplied directly or calculated as:
+When workload request rate and measured per-replica throughput are available, required
+replicas are calculated as:
 
 ```text
-cost_per_hour_usd × hours_per_month
+ceil(required_rps × (1 + minimum_headroom) / measured_rps_per_replica)
+```
+
+Monthly cost is then either supplied as a pre-sized total or calculated as:
+
+```text
+required_replicas × cost_per_hour_usd × hours_per_month
 ```
 
 The default is 730 hours per month. This is an explicit capacity assumption, not a
 cloud bill prediction; networking, storage, autoscaling, idle policy, and discounts
 remain outside the current model.
+
+For repeated GuideLLM evidence, RuntimeFit uses the median of metrics available in
+every run and retains min/median/max values plus relative range. A range above 15% of
+the median produces a stability warning in the decision report.
 
 ## Pareto frontier
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import statistics
 from pathlib import Path
 from typing import Any
 
@@ -71,12 +72,44 @@ def load_candidate_evidence(candidate: dict[str, Any], base_dir: Path, hours_per
             "definition_fingerprint": result.get("definition_fingerprint"),
         }
     else:
-        metrics, source = _load_guidellm(evidence, base_dir)
+        metrics, source = _load_guidellm_evidence(evidence, base_dir)
     if candidate.get("monthly_cost_usd") is not None:
         metrics["monthly_cost_usd"] = float(candidate["monthly_cost_usd"])
     elif candidate.get("cost_per_hour_usd") is not None:
         metrics["monthly_cost_usd"] = float(candidate["cost_per_hour_usd"]) * hours_per_month
     return {"metrics": metrics, "source": source}
+
+
+def _load_guidellm_evidence(
+    evidence: dict[str, Any], base_dir: Path
+) -> tuple[dict[str, float], dict[str, Any]]:
+    if "paths" not in evidence:
+        return _load_guidellm(evidence, base_dir)
+    loaded = [
+        _load_guidellm({**evidence, "path": path}, base_dir)
+        for path in evidence["paths"]
+    ]
+    shared_metrics = set.intersection(*(set(metrics) for metrics, _ in loaded))
+    metrics: dict[str, float] = {}
+    variability: dict[str, dict[str, float]] = {}
+    for name in sorted(shared_metrics):
+        values = [run_metrics[name] for run_metrics, _ in loaded]
+        median = float(statistics.median(values))
+        metrics[name] = median
+        variability[name] = {
+            "min": min(values),
+            "median": median,
+            "max": max(values),
+            "relative_range": (max(values) - min(values)) / median if median else 0.0,
+        }
+    sources = [source for _, source in loaded]
+    return metrics, {
+        "provider": "guidellm",
+        "aggregation": "median",
+        "run_count": len(loaded),
+        "runs": sources,
+        "variability": variability,
+    }
 
 
 def _load_guidellm(evidence: dict[str, Any], base_dir: Path) -> tuple[dict[str, float], dict[str, Any]]:
