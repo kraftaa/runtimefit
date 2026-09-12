@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "runtimefit"
-version = "0.1.0"
+version = "0.2.0"
 description = "Evidence-backed deployment decisions for LLM inference."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -27,9 +27,18 @@ Issues = "https://github.com/kraftaa/runtimefit/issues"
 
 [project.optional-dependencies]
 yaml = ["PyYAML>=6.0,<7"]
+dev = ["mypy>=2.3,<3", "ruff>=0.16,<0.17"]
 
 [project.scripts]
 runtimefit = "runtimefit.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true

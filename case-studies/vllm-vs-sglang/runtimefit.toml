@@ -9,6 +9,11 @@ source = "workload.jsonl"
 [cost]
 hours_per_month = 730
 
+[evidence_policy]
+minimum_runs = 3
+minimum_samples_p95 = 100
+minimum_samples_p99 = 1000
+
 [requirements]
 p95_ttft_ms = 400
 p99_latency_ms = 3000
@@ -82,4 +87,3 @@ cost_per_hour_usd = 1.00
 provider = "guidellm"
 paths = ["results/sglang/c16/run-1.json", "results/sglang/c16/run-2.json", "results/sglang/c16/run-3.json"]
 benchmark_index = 0
-

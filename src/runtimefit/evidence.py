@@ -8,7 +8,6 @@ from typing import Any
 
 from runtimefit.config import ConfigError
 
-
 CANONICAL_METRICS = {
     "ttft_p50_ms",
     "ttft_p95_ms",
@@ -39,13 +38,15 @@ RUNTIMEFIT_METRIC_MAP = {
 }
 
 
-def load_candidate_evidence(candidate: dict[str, Any], base_dir: Path, hours_per_month: float) -> dict[str, Any]:
+def load_candidate_evidence(
+    candidate: dict[str, Any], base_dir: Path, hours_per_month: float
+) -> dict[str, Any]:
     evidence = candidate["evidence"]
     provider = evidence.get("provider", "inline")
     source: dict[str, Any]
     if provider == "inline":
         metrics = _numeric_metrics(evidence["metrics"])
-        source = {"provider": "inline"}
+        source = {"provider": "inline", "run_count": 0, "sample_counts": {}}
     elif provider == "runtimefit":
         path = base_dir / evidence["path"]
         try:
@@ -54,11 +55,20 @@ def load_candidate_evidence(candidate: dict[str, Any], base_dir: Path, hours_per
         except FileNotFoundError as exc:
             raise ConfigError(f"Evidence file not found: {path}") from exc
         except json.JSONDecodeError as exc:
-            raise ConfigError(f"Invalid RuntimeFit evidence JSON: {path}: {exc}") from exc
-        matching = [target for target in result.get("targets", []) if target.get("name") == evidence["target"]]
+            raise ConfigError(
+                f"Invalid RuntimeFit evidence JSON: {path}: {exc}"
+            ) from exc
+        matching = [
+            target
+            for target in result.get("targets", [])
+            if target.get("name") == evidence["target"]
+        ]
         if not matching:
-            raise ConfigError(f"Target '{evidence['target']}' not found in evidence file {path}")
-        source_metrics = matching[0].get("metrics", {})
+            raise ConfigError(
+                f"Target '{evidence['target']}' not found in evidence file {path}"
+            )
+        target_result = matching[0]
+        source_metrics = target_result.get("metrics", {})
         metrics = {
             canonical: float(source_metrics[source])
             for canonical, source in RUNTIMEFIT_METRIC_MAP.items()
@@ -66,17 +76,21 @@ def load_candidate_evidence(candidate: dict[str, Any], base_dir: Path, hours_per
         }
         source = {
             "provider": "runtimefit",
+            "run_count": 1,
             "path": evidence["path"],
             "target": evidence["target"],
             "sha256": hashlib.sha256(raw).hexdigest(),
             "definition_fingerprint": result.get("definition_fingerprint"),
+            "sample_counts": _runtimefit_sample_counts(target_result, metrics),
         }
     else:
         metrics, source = _load_guidellm_evidence(evidence, base_dir)
     if candidate.get("monthly_cost_usd") is not None:
         metrics["monthly_cost_usd"] = float(candidate["monthly_cost_usd"])
     elif candidate.get("cost_per_hour_usd") is not None:
-        metrics["monthly_cost_usd"] = float(candidate["cost_per_hour_usd"]) * hours_per_month
+        metrics["monthly_cost_usd"] = (
+            float(candidate["cost_per_hour_usd"]) * hours_per_month
+        )
     return {"metrics": metrics, "source": source}
 
 
@@ -103,16 +117,28 @@ def _load_guidellm_evidence(
             "relative_range": (max(values) - min(values)) / median if median else 0.0,
         }
     sources = [source for _, source in loaded]
+    sample_metric_names = (
+        set.intersection(*(set(source.get("sample_counts", {})) for source in sources))
+        if sources
+        else set()
+    )
+    sample_counts = {
+        name: min(int(source["sample_counts"][name]) for source in sources)
+        for name in sample_metric_names
+    }
     return metrics, {
         "provider": "guidellm",
         "aggregation": "median",
         "run_count": len(loaded),
         "runs": sources,
         "variability": variability,
+        "sample_counts": sample_counts,
     }
 
 
-def _load_guidellm(evidence: dict[str, Any], base_dir: Path) -> tuple[dict[str, float], dict[str, Any]]:
+def _load_guidellm(
+    evidence: dict[str, Any], base_dir: Path
+) -> tuple[dict[str, float], dict[str, Any]]:
     path = base_dir / evidence["path"]
     try:
         raw = path.read_bytes()
@@ -123,7 +149,9 @@ def _load_guidellm(evidence: dict[str, Any], base_dir: Path) -> tuple[dict[str, 
         raise ConfigError(f"Invalid GuideLLM evidence JSON: {path}: {exc}") from exc
     schema_version = (report.get("metadata") or {}).get("version")
     if schema_version != 2:
-        raise ConfigError(f"Unsupported GuideLLM report schema version {schema_version!r}; expected 2")
+        raise ConfigError(
+            f"Unsupported GuideLLM report schema version {schema_version!r}; expected 2"
+        )
     index = evidence["benchmark_index"]
     benchmarks = report.get("benchmarks")
     if not isinstance(benchmarks, list) or index >= len(benchmarks):
@@ -158,13 +186,31 @@ def _load_guidellm(evidence: dict[str, Any], base_dir: Path) -> tuple[dict[str, 
     }
     totals = root.get("request_totals") or {}
     total_requests = totals.get("total")
+    successful_requests = totals.get("successful")
     errored_requests = totals.get("errored")
     if total_requests:
-        extracted["error_rate"] = (float(errored_requests or 0) / float(total_requests))
+        extracted["error_rate"] = float(errored_requests or 0) / float(total_requests)
     metrics = {name: value for name, value in extracted.items() if value is not None}
+    distribution_sources = {
+        "ttft_p50_ms": "time_to_first_token_ms",
+        "ttft_p95_ms": "time_to_first_token_ms",
+        "ttft_p99_ms": "time_to_first_token_ms",
+        "tpot_p50_ms": "time_per_output_token_ms",
+        "tpot_p95_ms": "time_per_output_token_ms",
+        "tpot_p99_ms": "time_per_output_token_ms",
+        "latency_p50_ms": "request_latency",
+        "latency_p95_ms": "request_latency",
+        "latency_p99_ms": "request_latency",
+    }
+    distribution_counts = {
+        metric: int(distribution(source_name).get("count") or successful_requests or 0)
+        for metric, source_name in distribution_sources.items()
+        if metric in metrics
+    }
     config = benchmark.get("config") or {}
     source = {
         "provider": "guidellm",
+        "run_count": 1,
         "path": evidence["path"],
         "benchmark_index": index,
         "sha256": hashlib.sha256(raw).hexdigest(),
@@ -173,8 +219,45 @@ def _load_guidellm(evidence: dict[str, Any], base_dir: Path) -> tuple[dict[str, 
         "benchmark_id": config.get("id_"),
         "run_index": config.get("run_index"),
         "strategy": config.get("strategy"),
+        "request_totals": {
+            "successful": int(successful_requests or 0),
+            "errored": int(errored_requests or 0),
+            "total": int(total_requests or 0),
+        },
+        "sample_counts": _guidellm_sample_counts(
+            metrics,
+            int(successful_requests or 0),
+            int(total_requests or 0),
+            distribution_counts,
+        ),
     }
     return metrics, source
+
+
+def _guidellm_sample_counts(
+    metrics: dict[str, float],
+    successful: int,
+    total: int,
+    distribution_counts: dict[str, int] | None = None,
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for name in metrics:
+        if name == "error_rate":
+            counts[name] = total
+        elif name.startswith(("ttft_", "tpot_", "latency_")):
+            counts[name] = (distribution_counts or {}).get(name, successful)
+        elif name.endswith("_throughput_rps") or name.endswith("_throughput_tps"):
+            counts[name] = total
+    return counts
+
+
+def _runtimefit_sample_counts(
+    target: dict[str, Any], metrics: dict[str, float]
+) -> dict[str, int]:
+    samples = target.get("samples") or []
+    successful = sum(1 for sample in samples if not sample.get("error"))
+    total = len(samples)
+    return _guidellm_sample_counts(metrics, successful, total)
 
 
 def _numeric_metrics(metrics: dict[str, Any]) -> dict[str, float]:

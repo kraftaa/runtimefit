@@ -6,7 +6,14 @@ from typing import Any
 def decision_markdown(decision: dict[str, Any]) -> str:
     summary = decision["summary"]
     selected_id = summary["selected"]
-    selected = next((candidate for candidate in decision["candidates"] if candidate["id"] == selected_id), None)
+    selected = next(
+        (
+            candidate
+            for candidate in decision["candidates"]
+            if candidate["id"] == selected_id
+        ),
+        None,
+    )
     lines = [
         f"# RuntimeFit decision: {decision['decision']}",
         "",
@@ -14,48 +21,86 @@ def decision_markdown(decision: dict[str, Any]) -> str:
         "",
     ]
     if selected:
+        provisional = summary.get("selection_status") == "indistinguishable"
         identity = " / ".join(
-            str(value) for value in (
-                selected["runtime"], selected.get("quantization"),
-                f"concurrency={selected['concurrency']}" if selected.get("concurrency") is not None else None,
-            ) if value is not None
+            str(value)
+            for value in (
+                selected["runtime"],
+                selected.get("quantization"),
+                f"concurrency={selected['concurrency']}"
+                if selected.get("concurrency") is not None
+                else None,
+            )
+            if value is not None
         )
-        lines.extend([
-            "## Recommended",
-            "",
-            f"**{identity}** (`{selected['id']}`)",
-            "",
-            f"Selected for `{decision['objective']}` among configurations satisfying every requirement.",
-            "",
-            "### Requirement checks",
-            "",
-            "| Requirement | Observed | Required | Result |",
-            "|---|---:|---:|:---:|",
-        ])
+        lines.extend(
+            [
+                "## Provisional recommendation" if provisional else "## Recommended",
+                "",
+                f"**{identity}** (`{selected['id']}`)",
+                "",
+                (
+                    f"Provisional choice for `{decision['objective']}`; its observed objective range overlaps "
+                    f"with {', '.join(f'`{name}`' for name in summary['indistinguishable_candidates'])}."
+                    if provisional
+                    else f"Selected for `{decision['objective']}` among configurations satisfying every requirement."
+                ),
+                "",
+                f"Evidence status: **{summary.get('evidence_status', 'unknown')}**.",
+                "",
+                "### Requirement checks",
+                "",
+                "| Requirement | Observed | Required | Result |",
+                "|---|---:|---:|:---:|",
+            ]
+        )
         for check in selected["checks"]:
             lines.append(
                 f"| `{check['requirement']}` | {_requirement_value(check, check['actual'])} | "
                 f"{_requirement_value(check, check['limit'])} | {'✓' if check['passed'] else '✗'} |"
             )
         lines.append("")
+        ranged_checks = [
+            check for check in selected["checks"] if check.get("observed_range")
+        ]
+        if ranged_checks:
+            lines.append(
+                "Requirement checks use the conservative end of the observed repeated-run range."
+            )
+            lines.append("")
     else:
-        lines.extend(["## No recommendation", "", "No configuration is both eligible and rankable for the objective.", ""])
+        lines.extend(
+            [
+                "## No recommendation",
+                "",
+                "No configuration is both eligible and rankable for the objective.",
+                "",
+            ]
+        )
     fastest_id = summary.get("fastest_candidate")
     if fastest_id and not summary.get("fastest_candidate_eligible"):
-        fastest = next(candidate for candidate in decision["candidates"] if candidate["id"] == fastest_id)
+        fastest = next(
+            candidate
+            for candidate in decision["candidates"]
+            if candidate["id"] == fastest_id
+        )
         reasons = "; ".join(format_failed_checks(fastest))
-        lines.extend([
-            "## Fastest candidate rejected",
+        lines.extend(
+            [
+                "## Fastest candidate rejected",
+                "",
+                f"`{fastest_id}` had the highest measured request throughput but was rejected: {reasons}.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "## Evidence",
             "",
-            f"`{fastest_id}` had the highest measured request throughput but was rejected: {reasons}.",
-            "",
-        ])
-    lines.extend([
-        "## Evidence",
-        "",
-        "| Candidate | Eligible | P95 TTFT | P99 latency | Req/s | Replicas | Headroom | Error | Monthly cost |",
-        "|---|:---:|---:|---:|---:|---:|---:|---:|---:|",
-    ])
+            "| Candidate | Eligible | P95 TTFT | P99 latency | Req/s | Replicas | Headroom | Error | Monthly cost |",
+            "|---|:---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
     for candidate in decision["candidates"]:
         metrics = candidate["metrics"]
         lines.append(
@@ -69,24 +114,33 @@ def decision_markdown(decision: dict[str, Any]) -> str:
     for candidate in decision["candidates"]:
         if candidate["id"] == selected_id:
             continue
-        reasons = format_failed_checks(candidate) or candidate["comparison_to_selected"]
-        lines.append(f"- **{candidate['id']}**: {'; '.join(reasons) if reasons else 'eligible, but not optimal'}")
-    warned = [candidate for candidate in decision["candidates"] if candidate.get("warnings")]
+        alternative_reasons = (
+            format_failed_checks(candidate) or candidate["comparison_to_selected"]
+        )
+        lines.append(
+            f"- **{candidate['id']}**: "
+            f"{'; '.join(alternative_reasons) if alternative_reasons else 'eligible, but not optimal'}"
+        )
+    warned = [
+        candidate for candidate in decision["candidates"] if candidate.get("warnings")
+    ]
     if warned:
-        lines.extend(["", "## Evidence stability warnings", ""])
+        lines.extend(["", "## Evidence limitations", ""])
         for candidate in warned:
             lines.append(f"- **{candidate['id']}**: {'; '.join(candidate['warnings'])}")
-    lines.extend([
-        "",
-        "## Pareto frontier",
-        "",
-        ", ".join(f"`{name}`" for name in decision["pareto_frontier"]) or "None",
-        "",
-        f"Decision fingerprint: `{decision['decision_fingerprint']}`",
-        "",
-        f"Configuration fingerprint: `{decision['config_fingerprint']}`",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Feasible Pareto frontier",
+            "",
+            ", ".join(f"`{name}`" for name in decision["pareto_frontier"]) or "None",
+            "",
+            f"Decision fingerprint: `{decision['decision_fingerprint']}`",
+            "",
+            f"Configuration fingerprint: `{decision['config_fingerprint']}`",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 

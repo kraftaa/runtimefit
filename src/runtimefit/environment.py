@@ -9,12 +9,15 @@ from typing import Any
 
 from runtimefit import __version__
 
-
 RUNTIME_COMMANDS = {
     "llama.cpp": ("llama-server", "--version"),
     "ollama": ("ollama", "--version"),
     "vllm": ("vllm", "--version"),
-    "nvidia": ("nvidia-smi", "--query-gpu=name,driver_version,memory.total", "--format=csv,noheader"),
+    "nvidia": (
+        "nvidia-smi",
+        "--query-gpu=name,driver_version,memory.total",
+        "--format=csv,noheader",
+    ),
 }
 
 
@@ -37,7 +40,11 @@ def _command_details(arguments: tuple[str, ...]) -> dict[str, Any]:
             timeout=5,
             check=False,
         )
-        combined = "\n".join(part.strip() for part in (completed.stdout, completed.stderr) if part.strip())
+        combined = "\n".join(
+            part.strip()
+            for part in (completed.stdout, completed.stderr)
+            if part.strip()
+        )
         safe_lines = [line for line in combined.splitlines() if line.strip()]
         version_lines = [line for line in safe_lines if "version" in line.casefold()]
         selected_lines = version_lines[:3] if version_lines else safe_lines[-4:]
@@ -47,7 +54,11 @@ def _command_details(arguments: tuple[str, ...]) -> dict[str, Any]:
             "version_output": " | ".join(selected_lines)[:500] or "unknown",
         }
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"available": True, "path": executable, "version_output": f"unavailable: {type(exc).__name__}"}
+        return {
+            "available": True,
+            "path": executable,
+            "version_output": f"unavailable: {type(exc).__name__}",
+        }
 
 
 def collect_environment() -> dict[str, Any]:
@@ -59,5 +70,8 @@ def collect_environment() -> dict[str, Any]:
         "processor": platform.processor() or "unknown",
         "logical_cpu_count": os.cpu_count(),
         "physical_memory_bytes": _physical_memory_bytes(),
-        "tools": {name: _command_details(command) for name, command in RUNTIME_COMMANDS.items()},
+        "tools": {
+            name: _command_details(command)
+            for name, command in RUNTIME_COMMANDS.items()
+        },
     }

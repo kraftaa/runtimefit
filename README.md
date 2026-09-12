@@ -13,13 +13,12 @@ RuntimeFit answers: **Given my workload and SLOs, what should I actually deploy?
 
 ## Installation
 
-After the first public release:
-
 ```bash
 pip install runtimefit
 ```
 
-Or, from the project's Homebrew tap:
+Homebrew support is prepared but the public tap has not been published yet. Once it is
+available, installation will be:
 
 ```bash
 brew install kraftaa/tap/runtimefit
@@ -59,13 +58,19 @@ Evidence: results/decision.json
 The result records every requirement check, rejection reason, alternative comparison,
 source-evidence hash, selected candidate, and Pareto frontier.
 
+Repeated evidence is evaluated conservatively: maximum SLOs use the worst observed
+run, minimum SLOs use the lowest observed run, and capacity planning uses the lowest
+observed throughput. RuntimeFit reports insufficient run/sample counts and labels a
+choice provisional when candidates' observed objective ranges overlap. These are
+explicit evidence rules, not fabricated confidence intervals.
+
 The metrics in the checked-in decision example are synthetic and demonstrate the
 selection contract; they are not performance claims about either runtime.
 
 Evidence providers currently include inline metrics, RuntimeFit's development runner,
 and GuideLLM report schema v2. See the [GuideLLM provider documentation](https://github.com/kraftaa/runtimefit/blob/main/docs/providers/guidellm.md).
 
-The v0.1 decision contract supports vLLM and SGLang candidates across concurrency and
+The current decision contract supports vLLM and SGLang candidates across concurrency and
 quantization settings. Constraints cover TTFT, end-to-end latency, throughput, error
 rate, capacity headroom, GPU memory, and monthly cost. When hourly instance cost and
 required request rate are supplied, RuntimeFit derives the replica count and monthly

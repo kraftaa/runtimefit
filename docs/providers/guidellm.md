@@ -40,7 +40,22 @@ aggregation = "median"
 ```
 
 Metrics whose maximum-to-minimum range exceeds 15% of the median are surfaced as
-evidence-stability warnings. RuntimeFit does not silently average unstable tail data.
+evidence-stability warnings. Constraints use the conservative end of the observed
+range rather than allowing the median to hide a failed run. RuntimeFit also records the
+minimum per-run sample count for each imported metric.
+
+The default disclosure policy expects three runs, at least 100 samples per run for a
+p95 statistic, and at least 1,000 for p99. It can be made explicit in the decision file:
+
+```toml
+[evidence_policy]
+minimum_runs = 3
+minimum_samples_p95 = 100
+minimum_samples_p99 = 1000
+```
+
+These thresholds are evidence-quality warnings, not confidence intervals. If observed
+objective ranges overlap, the recommendation is labelled provisional.
 
 ## Imported metrics
 

@@ -8,3 +8,4 @@ build/
 results/
 case-studies/*/workload.jsonl
 case-studies/*/results/
+RECOMMENDATIONS.md

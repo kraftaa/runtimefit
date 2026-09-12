@@ -8,7 +8,9 @@ def _number(value: Any, digits: int = 2) -> str:
 
 
 def markdown_report(result: dict[str, Any]) -> str:
-    chosen = result["recommendation"]["target"] or "None (no target met the constraints)"
+    chosen = (
+        result["recommendation"]["target"] or "None (no target met the constraints)"
+    )
     lines = [
         f"# RuntimeFit report: {result['benchmark']}",
         "",
@@ -33,42 +35,52 @@ def markdown_report(result: dict[str, Any]) -> str:
             f"{_number(metrics.get('estimated_usd_per_million_output_tokens'), 4)} | "
             f"{startup_display} |"
         )
-    lines.extend([
-        "",
-        "## Decision details",
-        "",
-        "Pareto frontier: " + ", ".join(f"`{name}`" for name in result.get("pareto_frontier", [])),
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Decision details",
+            "",
+            "Pareto frontier: "
+            + ", ".join(f"`{name}`" for name in result.get("pareto_frontier", [])),
+            "",
+        ]
+    )
     for name, reason in result["recommendation"].get("reasons", {}).items():
         lines.append(f"- `{name}`: {reason}")
     estimated_tokens = any(
         sample.get("token_count_source") == "estimated"
-        for target in result["targets"] for sample in target.get("samples", [])
+        for target in result["targets"]
+        for sample in target.get("samples", [])
     )
     non_streaming = any(
         not target.get("options", {}).get("streaming", True)
         for target in result.get("definition", {}).get("config", {}).get("targets", [])
         if target.get("adapter") == "openai"
     )
-    lines.extend([
-        "",
-        "## Reproducibility metadata",
-        "",
-        f"- Definition SHA-256: `{result['definition_fingerprint']}`",
-        f"- RuntimeFit: `{result['environment']['runtimefit']}`",
-        f"- Python: `{result['environment']['python']}`",
-        f"- Platform: `{result['environment']['platform']}`",
-        f"- Machine: `{result['environment']['machine']}`",
-        f"- Processor: `{result['environment']['processor']}`",
-        f"- Logical CPUs: `{result['environment']['logical_cpu_count']}`",
-        f"- Physical memory: `{result['environment']['physical_memory_bytes']}` bytes",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Reproducibility metadata",
+            "",
+            f"- Definition SHA-256: `{result['definition_fingerprint']}`",
+            f"- RuntimeFit: `{result['environment']['runtimefit']}`",
+            f"- Python: `{result['environment']['python']}`",
+            f"- Platform: `{result['environment']['platform']}`",
+            f"- Machine: `{result['environment']['machine']}`",
+            f"- Processor: `{result['environment']['processor']}`",
+            f"- Logical CPUs: `{result['environment']['logical_cpu_count']}`",
+            f"- Physical memory: `{result['environment']['physical_memory_bytes']}` bytes",
+        ]
+    )
     if non_streaming or estimated_tokens:
         lines.append("")
     if non_streaming:
-        lines.append("> TTFT for non-streaming HTTP endpoints means time to response headers/first response byte, not first generated token.")
+        lines.append(
+            "> TTFT for non-streaming HTTP endpoints means time to response headers/first response byte, not first generated token."
+        )
     if estimated_tokens:
-        lines.append("> Token counts marked `estimated` in the JSON result use a character-based approximation.")
+        lines.append(
+            "> Token counts marked `estimated` in the JSON result use a character-based approximation."
+        )
     lines.append("")
     return "\n".join(lines)

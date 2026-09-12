@@ -18,10 +18,12 @@ def percentile(values: list[float], probability: float) -> float:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
 
 
-def summarize(samples: list[Sample], wall_seconds: float) -> dict[str, float | int | None]:
+def summarize(
+    samples: list[Sample], wall_seconds: float
+) -> dict[str, float | int | None]:
     successful = [sample for sample in samples if sample.error is None]
     latencies = [sample.latency_ms for sample in successful]
-    ttfts = [sample.ttft_ms for sample in successful]
+    ttfts = [sample.ttft_ms for sample in successful if sample.ttft_ms is not None]
     qualities = [sample.quality for sample in successful if sample.quality is not None]
     tokens = sum(sample.output_tokens for sample in successful)
     total = len(samples)
@@ -37,7 +39,8 @@ def summarize(samples: list[Sample], wall_seconds: float) -> dict[str, float | i
         "ttft_p95_ms": percentile(ttfts, 0.95) if ttfts else None,
         "output_tokens": tokens,
         "output_tokens_per_second": tokens / wall_seconds if wall_seconds > 0 else 0.0,
-        "requests_per_second": len(successful) / wall_seconds if wall_seconds > 0 else 0.0,
+        "requests_per_second": len(successful) / wall_seconds
+        if wall_seconds > 0
+        else 0.0,
         "wall_seconds": wall_seconds,
     }
-

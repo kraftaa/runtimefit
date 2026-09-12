@@ -20,8 +20,9 @@ price, which vLLM or SGLang concurrency configuration should serve a workload re
 - monthly cost below $2,000.
 
 The candidates are vLLM and SGLang at concurrency 4, 8, and 16. Each candidate is run
-three times. RuntimeFit selects using the median measurement and warns when the range
-across repetitions exceeds 15% of the median.
+three times. RuntimeFit reports medians, evaluates hard constraints against the worst
+observed run, uses the lowest observed throughput for capacity, and warns when the
+range across repetitions exceeds 15% of the median.
 
 ## Required machine
 

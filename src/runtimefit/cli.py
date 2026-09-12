@@ -20,21 +20,35 @@ def build_parser() -> argparse.ArgumentParser:
         prog="runtimefit",
         description="Turn LLM benchmark evidence and production constraints into a deployment decision.",
     )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
     commands = parser.add_subparsers(dest="command", required=True)
-    doctor = commands.add_parser("doctor", help="show benchmark-relevant system and tool metadata")
-    doctor.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    doctor = commands.add_parser(
+        "doctor", help="show benchmark-relevant system and tool metadata"
+    )
+    doctor.add_argument(
+        "--json", action="store_true", help="emit machine-readable JSON"
+    )
     validate = commands.add_parser("validate", help="validate a decision configuration")
     validate.add_argument("config")
     validate_benchmark = commands.add_parser(
         "validate-benchmark", help="validate a built-in runner configuration"
     )
     validate_benchmark.add_argument("config")
-    choose_command = commands.add_parser("choose", help="select a deployment from benchmark evidence and requirements")
-    choose_command.add_argument("config", help="decision config (.toml, .json, or optional .yaml)")
-    choose_command.add_argument("--output", "-o", required=True, help="machine-readable decision JSON")
+    choose_command = commands.add_parser(
+        "choose", help="select a deployment from benchmark evidence and requirements"
+    )
+    choose_command.add_argument(
+        "config", help="decision config (.toml, .json, or optional .yaml)"
+    )
+    choose_command.add_argument(
+        "--output", "-o", required=True, help="machine-readable decision JSON"
+    )
     choose_command.add_argument("--report", help="optional Markdown decision report")
-    run = commands.add_parser("run", help="run the small built-in development evidence provider")
+    run = commands.add_parser(
+        "run", help="run the small built-in development evidence provider"
+    )
     run.add_argument("config")
     run.add_argument("--output", "-o", required=True, help="result JSON path")
     run.add_argument("--report", help="optional Markdown report path")
@@ -54,11 +68,21 @@ def main(argv: list[str] | None = None) -> int:
             if args.json:
                 print(json.dumps(environment, indent=2))
             else:
-                gib = environment["physical_memory_bytes"] / (1024 ** 3) if environment["physical_memory_bytes"] else 0
+                gib = (
+                    environment["physical_memory_bytes"] / (1024**3)
+                    if environment["physical_memory_bytes"]
+                    else 0
+                )
                 print(f"RuntimeFit {environment['runtimefit']}")
-                print(f"System: {environment['platform']} ({environment['logical_cpu_count']} logical CPUs, {gib:.1f} GiB RAM)")
+                print(
+                    f"System: {environment['platform']} ({environment['logical_cpu_count']} logical CPUs, {gib:.1f} GiB RAM)"
+                )
                 for name, details in environment["tools"].items():
-                    status = details.get("version_output", "not found") if details["available"] else "not found"
+                    status = (
+                        details.get("version_output", "not found")
+                        if details["available"]
+                        else "not found"
+                    )
                     print(f"{name}: {status}")
             return 0
         if args.command == "choose":
@@ -72,14 +96,24 @@ def main(argv: list[str] | None = None) -> int:
                 report.parent.mkdir(parents=True, exist_ok=True)
                 report.write_text(decision_markdown(decision), encoding="utf-8")
             summary = decision["summary"]
-            print(f"{summary['eligible_count']}/{summary['candidate_count']} configurations satisfy requirements.")
-            print(f"Winner: {summary['selected'] or 'none'}")
+            print(
+                f"{summary['eligible_count']}/{summary['candidate_count']} configurations satisfy requirements."
+            )
+            label = (
+                "Provisional choice"
+                if summary.get("selection_status") == "indistinguishable"
+                else "Winner"
+            )
+            print(f"{label}: {summary['selected'] or 'none'}")
             if summary["reason"]:
                 print(f"Reason: {summary['reason']}.")
-            if summary.get("fastest_candidate") and not summary.get("fastest_candidate_eligible"):
+            if summary.get("fastest_candidate") and not summary.get(
+                "fastest_candidate_eligible"
+            ):
                 print(f"Fastest rejected: {summary['fastest_candidate']}")
                 fastest = next(
-                    candidate for candidate in decision["candidates"]
+                    candidate
+                    for candidate in decision["candidates"]
                     if candidate["id"] == summary["fastest_candidate"]
                 )
                 for reason in format_failed_checks(fastest):

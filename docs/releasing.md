@@ -48,7 +48,7 @@ brew install kraftaa/tap/runtimefit
 1. Update `project.version` in `pyproject.toml`.
 2. Run tests and build checks locally.
 3. Commit the release changes.
-4. Create and push the matching tag, such as `v0.1.0`.
+4. Create and push the matching tag, such as `v0.2.0`.
 5. Approve the protected `pypi` environment deployment.
 6. Download and test the generated Homebrew formula artifact.
 7. Commit the formula to `kraftaa/homebrew-tap`.
@@ -61,8 +61,8 @@ After building an sdist:
 
 ```bash
 python scripts/render_homebrew_formula.py \
-  --version 0.1.0 \
-  --sdist dist/runtimefit-0.1.0.tar.gz \
+  --version 0.2.0 \
+  --sdist dist/runtimefit-0.2.0.tar.gz \
   --github-owner kraftaa \
   --output /path/to/homebrew-tap/Formula/runtimefit.rb
 ```

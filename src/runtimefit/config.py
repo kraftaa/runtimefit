@@ -16,7 +16,9 @@ def load_config(path: str | Path) -> dict[str, Any]:
     except FileNotFoundError as exc:
         raise ConfigError(f"Config not found: {config_path}") from exc
     except json.JSONDecodeError as exc:
-        raise ConfigError(f"Invalid JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}") from exc
+        raise ConfigError(
+            f"Invalid JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}"
+        ) from exc
     validate_config(data, config_path.parent)
     data["_config_dir"] = str(config_path.parent.resolve())
     return data
@@ -47,11 +49,21 @@ def validate_config(data: Any, base_dir: Path = Path(".")) -> None:
             if not isinstance(launch, dict):
                 raise ConfigError(f"targets[{index}].launch must be an object")
             command = launch.get("command")
-            if not isinstance(command, list) or not command or not all(isinstance(part, str) for part in command):
-                raise ConfigError(f"targets[{index}].launch.command must be a non-empty list of strings")
+            if (
+                not isinstance(command, list)
+                or not command
+                or not all(isinstance(part, str) for part in command)
+            ):
+                raise ConfigError(
+                    f"targets[{index}].launch.command must be a non-empty list of strings"
+                )
             health_url = launch.get("health_url")
-            if not isinstance(health_url, str) or not health_url.startswith(("http://127.0.0.1", "http://localhost")):
-                raise ConfigError(f"targets[{index}].launch.health_url must use localhost")
+            if not isinstance(health_url, str) or not health_url.startswith(
+                ("http://127.0.0.1", "http://localhost")
+            ):
+                raise ConfigError(
+                    f"targets[{index}].launch.health_url must use localhost"
+                )
     dataset = data.get("dataset")
     if not isinstance(dataset, str) or not dataset:
         raise ConfigError("'dataset' must be a JSONL path")
@@ -73,7 +85,9 @@ def validate_config(data: Any, base_dir: Path = Path(".")) -> None:
             and len(set(concurrency)) == len(concurrency)
         )
     if not valid_concurrency:
-        raise ConfigError("run.concurrency must be a positive integer or a non-empty list of unique positive integers")
+        raise ConfigError(
+            "run.concurrency must be a positive integer or a non-empty list of unique positive integers"
+        )
     objective = data.get("objective", "throughput")
     if objective not in {"throughput", "latency", "ttft", "cost"}:
         raise ConfigError("objective must be throughput, latency, ttft, or cost")
@@ -90,7 +104,9 @@ def validate_config(data: Any, base_dir: Path = Path(".")) -> None:
     }
     unknown_constraints = set(constraints) - allowed_constraints
     if unknown_constraints:
-        raise ConfigError(f"Unsupported constraints: {', '.join(sorted(unknown_constraints))}")
+        raise ConfigError(
+            f"Unsupported constraints: {', '.join(sorted(unknown_constraints))}"
+        )
     for key, value in constraints.items():
         if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0:
             raise ConfigError(f"constraints.{key} must be a non-negative number")
@@ -99,4 +115,6 @@ def validate_config(data: Any, base_dir: Path = Path(".")) -> None:
         if cost is not None and (
             not isinstance(cost, (int, float)) or isinstance(cost, bool) or cost < 0
         ):
-            raise ConfigError(f"targets[{index}].cost_per_hour_usd must be a non-negative number")
+            raise ConfigError(
+                f"targets[{index}].cost_per_hour_usd must be a non-negative number"
+            )

@@ -24,9 +24,11 @@ def load_decision_config(path: str | Path) -> dict[str, Any]:
             data = json.loads(raw)
         elif suffix in {".yaml", ".yml"}:
             try:
-                import yaml  # type: ignore[import-not-found]
+                import yaml  # type: ignore[import-not-found,import-untyped]
             except ImportError as exc:
-                raise ConfigError("YAML support requires: pip install 'runtimefit[yaml]'") from exc
+                raise ConfigError(
+                    "YAML support requires: pip install 'runtimefit[yaml]'"
+                ) from exc
             try:
                 data = yaml.safe_load(raw)
             except yaml.YAMLError as exc:
@@ -34,7 +36,9 @@ def load_decision_config(path: str | Path) -> dict[str, Any]:
         else:
             raise ConfigError("Decision config must use .toml, .json, .yaml, or .yml")
     except (json.JSONDecodeError, tomllib.TOMLDecodeError) as exc:
-        raise ConfigError(f"Invalid {suffix[1:].upper()} decision config: {exc}") from exc
+        raise ConfigError(
+            f"Invalid {suffix[1:].upper()} decision config: {exc}"
+        ) from exc
     validate_decision_config(data)
     data["_config_dir"] = str(config_path.parent.resolve())
     return data
@@ -52,25 +56,33 @@ def validate_decision_config(data: Any) -> None:
             raise ConfigError(f"candidates[{index}] must be an object")
         for key in ("id", "runtime"):
             if not isinstance(candidate.get(key), str) or not candidate[key].strip():
-                raise ConfigError(f"candidates[{index}].{key} must be a non-empty string")
+                raise ConfigError(
+                    f"candidates[{index}].{key} must be a non-empty string"
+                )
         if candidate["runtime"] not in SUPPORTED_RUNTIMES:
-            supported = ", ".join(sorted(SUPPORTED_RUNTIMES))
+            supported_names = ", ".join(sorted(SUPPORTED_RUNTIMES))
             raise ConfigError(
-                f"Unsupported decision runtime {candidate['runtime']!r}; v0.1 supports: {supported}"
+                f"Unsupported decision runtime {candidate['runtime']!r}; currently supports: {supported_names}"
             )
         if candidate["id"] in identifiers:
             raise ConfigError(f"Duplicate candidate id: {candidate['id']}")
         identifiers.add(candidate["id"])
         concurrency = candidate.get("concurrency")
         if concurrency is not None and (
-            not isinstance(concurrency, int) or isinstance(concurrency, bool) or concurrency <= 0
+            not isinstance(concurrency, int)
+            or isinstance(concurrency, bool)
+            or concurrency <= 0
         ):
-            raise ConfigError(f"candidates[{index}].concurrency must be a positive integer")
+            raise ConfigError(
+                f"candidates[{index}].concurrency must be a positive integer"
+            )
         quantization = candidate.get("quantization")
         if quantization is not None and (
             not isinstance(quantization, str) or not quantization.strip()
         ):
-            raise ConfigError(f"candidates[{index}].quantization must be a non-empty string")
+            raise ConfigError(
+                f"candidates[{index}].quantization must be a non-empty string"
+            )
         evidence = candidate.get("evidence")
         if not isinstance(evidence, dict):
             raise ConfigError(f"candidates[{index}].evidence must be an object")
@@ -80,8 +92,12 @@ def validate_decision_config(data: Any) -> None:
         if provider == "inline" and not isinstance(evidence.get("metrics"), dict):
             raise ConfigError(f"candidates[{index}].evidence.metrics must be an object")
         if provider == "runtimefit":
-            if not isinstance(evidence.get("path"), str) or not isinstance(evidence.get("target"), str):
-                raise ConfigError(f"candidates[{index}] runtimefit evidence requires path and target")
+            if not isinstance(evidence.get("path"), str) or not isinstance(
+                evidence.get("target"), str
+            ):
+                raise ConfigError(
+                    f"candidates[{index}] runtimefit evidence requires path and target"
+                )
         if provider == "guidellm":
             benchmark_index = evidence.get("benchmark_index")
             path = evidence.get("path")
@@ -102,17 +118,23 @@ def validate_decision_config(data: Any) -> None:
                 )
             aggregation = evidence.get("aggregation", "median")
             if aggregation != "median":
-                raise ConfigError("GuideLLM repeated evidence currently supports aggregation = 'median'")
+                raise ConfigError(
+                    "GuideLLM repeated evidence currently supports aggregation = 'median'"
+                )
         for cost_key in ("monthly_cost_usd", "cost_per_hour_usd"):
             cost_value = candidate.get(cost_key)
             if cost_value is not None and (
-                not isinstance(cost_value, (int, float)) or isinstance(cost_value, bool) or cost_value < 0
+                not isinstance(cost_value, (int, float))
+                or isinstance(cost_value, bool)
+                or cost_value < 0
             ):
-                raise ConfigError(f"candidates[{index}].{cost_key} must be a non-negative number")
+                raise ConfigError(
+                    f"candidates[{index}].{cost_key} must be a non-negative number"
+                )
     requirements = data.get("requirements", {})
     if not isinstance(requirements, dict):
         raise ConfigError("requirements must be an object")
-    supported = {
+    supported_requirements = {
         "p95_ttft_ms",
         "p99_latency_ms",
         "max_monthly_cost_usd",
@@ -122,7 +144,7 @@ def validate_decision_config(data: Any) -> None:
         "max_gpu_memory_gb",
         "min_throughput_headroom_fraction",
     }
-    unknown = set(requirements) - supported
+    unknown = set(requirements) - supported_requirements
     if unknown:
         raise ConfigError(f"Unsupported requirements: {', '.join(sorted(unknown))}")
     for key, value in requirements.items():
@@ -138,6 +160,23 @@ def validate_decision_config(data: Any) -> None:
     }
     if objective not in supported_objectives:
         raise ConfigError(f"Unsupported objective: {objective}")
+    evidence_policy = data.get("evidence_policy", {})
+    if not isinstance(evidence_policy, dict):
+        raise ConfigError("evidence_policy must be an object")
+    allowed_policy = {"minimum_runs", "minimum_samples_p95", "minimum_samples_p99"}
+    unknown_policy = set(evidence_policy) - allowed_policy
+    if unknown_policy:
+        raise ConfigError(
+            f"Unsupported evidence_policy settings: {', '.join(sorted(unknown_policy))}"
+        )
+    for key, default in (
+        ("minimum_runs", 3),
+        ("minimum_samples_p95", 100),
+        ("minimum_samples_p99", 1000),
+    ):
+        value = evidence_policy.get(key, default)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            raise ConfigError(f"evidence_policy.{key} must be a positive integer")
     cost = data.get("cost", {})
     if not isinstance(cost, dict):
         raise ConfigError("cost must be an object")
@@ -154,7 +193,10 @@ def validate_decision_config(data: Any) -> None:
         or requests_per_second <= 0
     ):
         raise ConfigError("workload.requests_per_second must be a positive number")
-    if "min_throughput_headroom_fraction" in requirements and requests_per_second is None:
+    if (
+        "min_throughput_headroom_fraction" in requirements
+        and requests_per_second is None
+    ):
         raise ConfigError(
             "workload.requests_per_second is required when min_throughput_headroom_fraction is set"
         )

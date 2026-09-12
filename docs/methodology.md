@@ -5,7 +5,7 @@ inference engine is universally fastest, and its primary `choose` workflow does 
 run a load test. It answers a narrower question: which declared candidate best meets
 this workload's requirements, according to a stated objective?
 
-The v0.1 decision contract intentionally accepts only vLLM and SGLang candidates.
+The current decision contract intentionally accepts only vLLM and SGLang candidates.
 
 ## Decision pipeline
 
@@ -18,8 +18,9 @@ The v0.1 decision contract intentionally accepts only vLLM and SGLang candidates
 5. Evaluate every declared requirement independently.
 6. Reject a candidate when it violates a limit or lacks a required measurement.
 7. Rank the remaining candidates by the one declared objective.
-8. Report the selection, every check and rejection, alternative comparisons, source
-   hashes, and the Pareto frontier.
+8. Mark the choice provisional when repeated-run objective ranges overlap.
+9. Report the selection, every check and rejection, alternative comparisons, source
+   hashes, evidence limitations, and the feasible Pareto frontier.
 
 RuntimeFit never converts latency, throughput, reliability, and cost into a hidden
 weighted score. Requirements are hard filters; the objective ranks feasible choices.
@@ -58,7 +59,7 @@ When workload request rate and measured per-replica throughput are available, re
 replicas are calculated as:
 
 ```text
-ceil(required_rps × (1 + minimum_headroom) / measured_rps_per_replica)
+ceil(required_rps × (1 + minimum_headroom) / planning_rps_per_replica)
 ```
 
 Monthly cost is then either supplied as a pre-sized total or calculated as:
@@ -67,27 +68,44 @@ Monthly cost is then either supplied as a pre-sized total or calculated as:
 required_replicas × cost_per_hour_usd × hours_per_month
 ```
 
+For repeated evidence, `planning_rps_per_replica` is the lowest observed throughput;
+for single-run evidence it is the measured throughput. RuntimeFit applies a small
+floating-point tolerance before the ceiling so exact capacity does not spuriously
+double the replica count.
+
 The default is 730 hours per month. This is an explicit capacity assumption, not a
 cloud bill prediction; networking, storage, autoscaling, idle policy, and discounts
 remain outside the current model.
 
-For repeated GuideLLM evidence, RuntimeFit uses the median of metrics available in
-every run and retains min/median/max values plus relative range. A range above 15% of
-the median produces a stability warning in the decision report.
+For repeated GuideLLM evidence, RuntimeFit reports the median of metrics available in
+every run and retains min/median/max values plus relative range. Hard maximum
+requirements use the highest observed value and hard minimum requirements use the
+lowest observed value. A range above 15% of the median produces a stability warning.
+
+RuntimeFit carries provider sample counts and run counts into evidence provenance. The
+default evidence policy expects three runs, at least 100 observations for p95, and at
+least 1,000 for p99. Insufficient counts do not fabricate statistical certainty: they
+produce explicit limitations and mark the recommendation evidence as limited. Projects
+can override these disclosure thresholds under `[evidence_policy]`.
+
+When candidates' repeated-run ranges overlap on the ranking objective, RuntimeFit
+retains the point-estimate choice for reproducibility but labels it provisional and
+lists the empirically indistinguishable alternatives. This is an observed-range rule,
+not a confidence interval.
 
 ## Pareto frontier
 
-The frontier uses only decision metrics present for every candidate, so a sparse
-record cannot dominate a fully measured record merely because inconvenient metrics
-are absent. Lower latency, error rate, memory, and cost are better; higher throughput
-is better. The frontier includes feasible and infeasible candidates because a rejected
-candidate can still reveal a real tradeoff. Eligibility remains visible beside it.
+The frontier contains only eligible, objective-rankable candidates and uses the metrics
+declared by the requirements plus the ranking objective. A candidate missing any of
+those measurements is excluded rather than rewarded for incomplete evidence. Rejected
+candidates remain visible in the evidence and alternatives sections, but are not
+presented as deployable Pareto choices.
 
-## Why quality is not in v0.1
+## Why quality is not in the decision MVP
 
 Quality needs its own controlled protocol. Quantization, sampling parameters, model
 revision, output nondeterminism, task data, and evaluator choice can all change the
-result. RuntimeFit v0.1 therefore does not accept a quality requirement in the
+result. RuntimeFit therefore does not yet accept a quality requirement in the
 decision contract. A future quality provider must expose the evaluator, dataset
 revision, sampling configuration, repetitions, and uncertainty before quality can
 participate in deployment selection.

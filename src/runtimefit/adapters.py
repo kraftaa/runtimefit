@@ -29,7 +29,9 @@ class MockAdapter(Adapter):
         self.latency_ms = float(options.get("latency_ms", 20))
         self.ttft_ms = float(options.get("ttft_ms", self.latency_ms / 2))
         self.response = str(options.get("response", "ok"))
-        self.responses = {str(key): str(value) for key, value in options.get("responses", {}).items()}
+        self.responses = {
+            str(key): str(value) for key, value in options.get("responses", {}).items()
+        }
         self.fail_on = {str(value) for value in options.get("fail_on", [])}
 
     def generate(self, prompt: str) -> Generation:
@@ -78,17 +80,26 @@ class OpenAIAdapter(Adapter):
             method="POST",
         )
         started = time.perf_counter()
+        deadline = time.monotonic() + self.timeout_s
         try:
             with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
                 if self.streaming:
-                    text, output_tokens, first_token = self._read_stream(response, started)
+                    text, output_tokens, first_token = self._read_stream(
+                        response, started, deadline
+                    )
                     finished = time.perf_counter()
                     return Generation(
                         text=text,
                         latency_ms=(finished - started) * 1000,
-                        ttft_ms=(first_token - started) * 1000,
-                        output_tokens=output_tokens if output_tokens is not None else estimate_tokens(text),
-                        token_count_source="reported" if output_tokens is not None else "estimated",
+                        ttft_ms=(first_token - started) * 1000
+                        if first_token is not None
+                        else None,
+                        output_tokens=output_tokens
+                        if output_tokens is not None
+                        else estimate_tokens(text),
+                        token_count_source="reported"
+                        if output_tokens is not None
+                        else "estimated",
                     )
                 response_started = time.perf_counter()
                 body = response.read()
@@ -102,32 +113,51 @@ class OpenAIAdapter(Adapter):
             parsed = json.loads(body)
             text = parsed["choices"][0]["message"]["content"]
         except (json.JSONDecodeError, KeyError, IndexError, TypeError) as exc:
-            raise RuntimeError("Endpoint returned an invalid chat-completions response") from exc
+            raise RuntimeError(
+                "Endpoint returned an invalid chat-completions response"
+            ) from exc
         usage_tokens = parsed.get("usage", {}).get("completion_tokens")
         return Generation(
             text=str(text),
             latency_ms=(finished - started) * 1000,
             ttft_ms=(response_started - started) * 1000,
-            output_tokens=int(usage_tokens) if usage_tokens is not None else estimate_tokens(str(text)),
+            output_tokens=int(usage_tokens)
+            if usage_tokens is not None
+            else estimate_tokens(str(text)),
             token_count_source="reported" if usage_tokens is not None else "estimated",
         )
 
     @staticmethod
-    def _read_stream(response: Any, started: float) -> tuple[str, int | None, float]:
+    def _read_stream(
+        response: Any, started: float, deadline: float | None = None
+    ) -> tuple[str, int | None, float | None]:
         chunks: list[str] = []
         output_tokens: int | None = None
         first_token: float | None = None
-        for raw_line in response:
+        saw_done = False
+        while True:
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("request deadline exceeded while reading stream")
+                OpenAIAdapter._set_socket_timeout(response, remaining)
+            raw_line = response.readline()
+            if not raw_line:
+                break
+            arrived = time.perf_counter()
             line = raw_line.decode("utf-8", errors="replace").strip()
             if not line.startswith("data:"):
                 continue
             data = line[5:].strip()
             if data == "[DONE]":
+                saw_done = True
                 break
             try:
                 event = json.loads(data)
             except json.JSONDecodeError as exc:
-                raise RuntimeError("Endpoint returned invalid JSON in its SSE stream") from exc
+                raise RuntimeError(
+                    "Endpoint returned invalid JSON in its SSE stream"
+                ) from exc
             usage = event.get("usage") or {}
             if usage.get("completion_tokens") is not None:
                 output_tokens = int(usage["completion_tokens"])
@@ -137,11 +167,21 @@ class OpenAIAdapter(Adapter):
             content = (choices[0].get("delta") or {}).get("content")
             if content:
                 if first_token is None:
-                    first_token = time.perf_counter()
+                    first_token = arrived
                 chunks.append(str(content))
-        if first_token is None:
-            first_token = time.perf_counter()
+        if not saw_done:
+            raise RuntimeError("endpoint stream ended before [DONE]")
         return "".join(chunks), output_tokens, first_token
+
+    @staticmethod
+    def _set_socket_timeout(response: Any, timeout_s: float) -> None:
+        """Best-effort deadline enforcement for urllib's buffered response."""
+
+        try:
+            response.fp.raw._sock.settimeout(timeout_s)
+        except AttributeError:
+            # In-memory tests and alternative urllib handlers may not expose a socket.
+            pass
 
 
 def create_adapter(kind: str, options: dict[str, Any], timeout_s: float) -> Adapter:

@@ -1,0 +1,39 @@
+name: Bug report
+description: Report incorrect RuntimeFit behavior using sanitized evidence.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private prompts, or internal endpoints.
+  - type: input
+    id: version
+    attributes:
+      label: RuntimeFit version
+      placeholder: runtimefit 0.2.0
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Sanitized reproduction
+      description: Include the smallest safe configuration and command that reproduce the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include relevant OS, Python, evidence-provider, and runtime versions.

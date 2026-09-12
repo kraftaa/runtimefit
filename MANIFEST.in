@@ -1,0 +1,8 @@
+include CHANGELOG.md
+include CONTRIBUTING.md
+include SECURITY.md
+recursive-include benchmarks *.json *.jsonl *.md
+recursive-include case-studies *.md *.sh *.toml
+recursive-include docs *.md
+recursive-include examples *.json *.jsonl *.toml
+recursive-include scripts *.py

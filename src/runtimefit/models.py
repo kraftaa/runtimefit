@@ -16,7 +16,7 @@ class WorkItem:
 class Generation:
     text: str
     latency_ms: float
-    ttft_ms: float
+    ttft_ms: float | None
     output_tokens: int
     token_count_source: str
 
@@ -26,7 +26,7 @@ class Sample:
     item_id: str
     repetition: int
     latency_ms: float
-    ttft_ms: float
+    ttft_ms: float | None
     output_tokens: int
     token_count_source: str
     quality: float | None
@@ -50,4 +50,3 @@ class TargetResult:
             "metrics": self.metrics,
             "samples": [sample.to_dict() for sample in self.samples],
         }
-

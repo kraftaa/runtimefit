@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import nullcontext
@@ -44,7 +45,9 @@ def _execute(adapter: Adapter, item: WorkItem, repetition: int) -> Sample:
         )
 
 
-def run_benchmark(config: dict[str, Any], allow_processes: bool = False) -> dict[str, Any]:
+def run_benchmark(
+    config: dict[str, Any], allow_processes: bool = False
+) -> dict[str, Any]:
     base_dir = Path(config["_config_dir"])
     dataset_path = base_dir / config["dataset"]
     items = load_dataset(dataset_path)
@@ -52,7 +55,11 @@ def run_benchmark(config: dict[str, Any], allow_processes: bool = False) -> dict
     warmup = int(run.get("warmup", 1))
     repetitions = int(run.get("repetitions", 1))
     configured_concurrency = run.get("concurrency", 1)
-    concurrencies = configured_concurrency if isinstance(configured_concurrency, list) else [configured_concurrency]
+    concurrencies = (
+        configured_concurrency
+        if isinstance(configured_concurrency, list)
+        else [configured_concurrency]
+    )
     timeout_s = float(run.get("timeout_s", 60))
     results: list[TargetResult] = []
     for target in config["targets"]:
@@ -63,16 +70,27 @@ def run_benchmark(config: dict[str, Any], allow_processes: bool = False) -> dict
             )
         manager = ManagedProcess(launch) if launch else nullcontext()
         with manager as managed:
-            adapter = create_adapter(target["adapter"], target.get("options", {}), timeout_s)
+            adapter = create_adapter(
+                target["adapter"], target.get("options", {}), timeout_s
+            )
             for index in range(warmup):
                 _execute(adapter, items[index % len(items)], -1)
-            startup_seconds = managed.startup_seconds if isinstance(managed, ManagedProcess) else None
+            startup_seconds = (
+                managed.startup_seconds if isinstance(managed, ManagedProcess) else None
+            )
             for concurrency in concurrencies:
-                jobs = [(item, repetition) for repetition in range(repetitions) for item in items]
+                jobs = [
+                    (item, repetition)
+                    for repetition in range(repetitions)
+                    for item in items
+                ]
                 samples: list[Sample] = []
                 started = time.perf_counter()
                 with ThreadPoolExecutor(max_workers=concurrency) as pool:
-                    futures = [pool.submit(_execute, adapter, item, repetition) for item, repetition in jobs]
+                    futures = [
+                        pool.submit(_execute, adapter, item, repetition)
+                        for item, repetition in jobs
+                    ]
                     for future in as_completed(futures):
                         samples.append(future.result())
                 wall_seconds = time.perf_counter() - started
@@ -88,13 +106,19 @@ def run_benchmark(config: dict[str, Any], allow_processes: bool = False) -> dict
                     if hourly_cost is not None and throughput > 0
                     else None
                 )
-                candidate_name = target["name"] if len(concurrencies) == 1 else f"{target['name']}@c{concurrency}"
-                results.append(TargetResult(
-                    name=candidate_name,
-                    adapter=target["adapter"],
-                    metrics=metrics,
-                    samples=samples,
-                ))
+                candidate_name = (
+                    target["name"]
+                    if len(concurrencies) == 1
+                    else f"{target['name']}@c{concurrency}"
+                )
+                results.append(
+                    TargetResult(
+                        name=candidate_name,
+                        adapter=target["adapter"],
+                        metrics=metrics,
+                        samples=samples,
+                    )
+                )
     objective = config.get("objective", "throughput")
     selected, reasons = recommend(results, objective, config.get("constraints", {}))
     public_config = _public_config(config)
@@ -115,25 +139,78 @@ def run_benchmark(config: dict[str, Any], allow_processes: bool = False) -> dict
         "definition": definition,
         "environment": collect_environment(),
         "recommendation": {"target": selected, "reasons": reasons},
-        "pareto_frontier": pareto_frontier(results),
+        "pareto_frontier": pareto_frontier(results, config.get("constraints", {})),
         "targets": [result.to_dict() for result in results],
     }
 
 
 def _public_config(config: dict[str, Any]) -> dict[str, Any]:
+    def sensitive_key(key: str) -> bool:
+        normalized = re.sub(r"[^a-z0-9]+", "_", key.casefold()).strip("_")
+        if normalized.endswith("_env"):
+            return False
+        parts = set(normalized.split("_"))
+        exact = {
+            "api_key",
+            "apikey",
+            "authorization",
+            "bearer",
+            "credential",
+            "credentials",
+            "password",
+            "passwd",
+            "private_key",
+            "secret",
+            "token",
+            "access_token",
+            "client_secret",
+        }
+        return (
+            normalized in exact
+            or bool(
+                parts
+                & {
+                    "authorization",
+                    "bearer",
+                    "credential",
+                    "credentials",
+                    "password",
+                    "passwd",
+                    "secret",
+                    "token",
+                }
+            )
+            or normalized == "key"
+            or normalized.endswith("_key")
+        )
+
     def sanitize(value: Any) -> Any:
         if isinstance(value, dict):
             cleaned: dict[str, Any] = {}
             for key, child in value.items():
                 if key.startswith("_"):
                     continue
-                lowered = key.casefold()
-                sensitive = lowered in {"password", "secret", "token", "api_key", "authorization", "access_token"}
-                sensitive = sensitive or lowered.endswith(("_password", "_secret"))
-                cleaned[key] = "<redacted>" if sensitive and not lowered.endswith("_env") else sanitize(child)
+                cleaned[key] = "<redacted>" if sensitive_key(key) else sanitize(child)
             return cleaned
         if isinstance(value, list):
-            return [sanitize(item) for item in value]
+            cleaned_items: list[Any] = []
+            redact_next = False
+            for item in value:
+                if redact_next:
+                    cleaned_items.append("<redacted>")
+                    redact_next = False
+                    continue
+                if isinstance(item, str) and item.startswith("-"):
+                    option, separator, _option_value = item.partition("=")
+                    if sensitive_key(option.lstrip("-")):
+                        if separator:
+                            cleaned_items.append(f"{option}=<redacted>")
+                        else:
+                            cleaned_items.append(item)
+                            redact_next = True
+                        continue
+                cleaned_items.append(sanitize(item))
+            return cleaned_items
         return value
 
     return sanitize(config)

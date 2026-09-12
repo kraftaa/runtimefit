@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -15,10 +16,17 @@ from runtimefit.config import ConfigError
 class ManagedProcess(AbstractContextManager["ManagedProcess"]):
     def __init__(self, specification: dict[str, Any]):
         command = specification.get("command")
-        if not isinstance(command, list) or not command or not all(isinstance(part, str) for part in command):
+        if (
+            not isinstance(command, list)
+            or not command
+            or not all(isinstance(part, str) for part in command)
+        ):
             raise ConfigError("launch.command must be a non-empty list of strings")
         self.command = [os.path.expandvars(part) for part in command]
-        if any("${" in part for part in self.command):
+        unresolved_variable = re.compile(
+            r"\$(?:\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)"
+        )
+        if any(unresolved_variable.search(part) for part in self.command):
             raise ConfigError("launch.command contains an unset environment variable")
         self.health_url = str(specification.get("health_url", ""))
         if not self.health_url.startswith(("http://127.0.0.1", "http://localhost")):
@@ -47,13 +55,15 @@ class ManagedProcess(AbstractContextManager["ManagedProcess"]):
                     )
                 try:
                     with urllib.request.urlopen(self.health_url, timeout=1) as response:
-                        if 200 <= response.status < 500:
+                        if 200 <= response.status < 300:
                             self.startup_seconds = time.perf_counter() - started
                             return self
                 except (urllib.error.URLError, TimeoutError):
                     pass
                 time.sleep(0.25)
-            raise ConfigError(f"Managed process did not become healthy within {self.startup_timeout_s:g}s")
+            raise ConfigError(
+                f"Managed process did not become healthy within {self.startup_timeout_s:g}s"
+            )
         except Exception:
             self._stop()
             raise
@@ -68,7 +78,10 @@ class ManagedProcess(AbstractContextManager["ManagedProcess"]):
                 self.process.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 self.process.kill()
-                self.process.wait(timeout=5)
+                try:
+                    self.process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
         if not self._log.closed:
             self._log.close()
 
